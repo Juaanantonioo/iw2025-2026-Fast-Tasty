@@ -10,8 +10,6 @@
 - **Juan Edriss Bueno Smidi**  
 - **Elías Berbel Cuéllar**  
 
-🔗 Repositorio GitHub: [iw2025-2026-Proyecto](https://github.com/Juaanantonioo/iw2025-2026-Proyecto)  
-
 ---
 
 ## 🧭 Introducción  

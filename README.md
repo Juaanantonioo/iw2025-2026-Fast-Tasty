@@ -59,25 +59,5 @@ Base de Datos MySQL / H2
 git clone https://github.com/Juaanantonioo/iw2025-2026-Proyecto.git
 cd iw2025-2026-Proyecto
 
-##  ⚙️ Compilar el proyecto
-mvn clean install
-
-## ▶️ Ejecutar la aplicación
-mvn spring-boot:run
-
-## La aplicación estará disponible en:
-http://localhost:8080
-
-## 🧠 Funcionalidades principales
-
-✅ Gestión de menús y productos
-✅ Toma y seguimiento de pedidos
-✅ Procesamiento de pagos (mock / simulado)
-✅ Panel de administración con estadísticas
-✅ Sistema de roles y autenticación
-
-## 🧪 Pruebas
-
-### Para ejecutar las pruebas unitarias:
 
 mvn test

@@ -58,6 +58,3 @@ Base de Datos MySQL / H2
 ```bash
 git clone https://github.com/Juaanantonioo/iw2025-2026-Proyecto.git
 cd iw2025-2026-Proyecto
-
-
-mvn test

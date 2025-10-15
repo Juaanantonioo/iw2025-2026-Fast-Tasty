@@ -1,14 +1,83 @@
-# 🍽️ Sistema de Gestión Integral para Locales de Comida Rápida  
-**Proyecto de Ingeniería Web – Curso 2025-2026**  
-**Universidad de Cádiz · Grado en Ingeniería Informática**  
+# 🍔 FastFoodManager – Sistema de Gestión Integral para Locales de Comida Rápida
+
+> Una aplicación web moderna para digitalizar la gestión de locales de comida rápida.  
+> Proyecto desarrollado en el marco de la asignatura **Ingeniería Web (UCA · Curso 2025-2026)**.
 
 ---
 
-## 👥 Equipo de Desarrollo
-- **Juan Antonio Salvado García**  
-- **David Conde Salado**  
-- **Juan Edriss Bueno Smidi**  
-- **Elías Berbel Cuéllar**  
+## 🚀 Descripción
+
+**FastFoodManager** es una aplicación web que permite a los pequeños locales de comida rápida gestionar de forma sencilla sus pedidos, menús, cobros y análisis de negocio.
+
+El sistema está dividido en dos áreas:
+
+- **Front-Office (Clientes):** carta digital interactiva, pedidos online y pago.  
+- **Back-Office (Administradores):** gestión de pedidos, control de menús y visualización de métricas.
+
+El objetivo del proyecto es **aplicar buenas prácticas de ingeniería web** utilizando **Java + Spring + Vaadin**, bajo una metodología ágil **SCRUM**.
+
+---
+
+## 🧱 Arquitectura
+
+El sistema sigue un enfoque **MVC** y se compone de los siguientes módulos:
+
+Cliente (Vaadin UI)
+↓
+Controladores REST (Spring MVC)
+↓
+Servicios y Repositorios (Spring Boot)
+↓
+Base de Datos MySQL / H2
 
 
+---
 
+## 🛠️ Tecnologías Utilizadas
+
+| Componente | Tecnología |
+|:--|:--|
+| Lenguaje principal | Java 17 / 21 |
+| Framework backend | Spring Boot 3 / Spring MVC |
+| Framework frontend | Vaadin 24+ |
+| Base de datos | MySQL (prod) / H2 (local) |
+| Dependencias | Apache Maven |
+| Control de versiones | Git + GitHub |
+| Entorno de desarrollo | Visual Studio Code |
+
+---
+
+## ⚙️ Instalación y Ejecución
+
+### 🔧 Requisitos previos
+- Java 17 o superior  
+- Maven instalado  
+- MySQL (opcional si usas H2 en local)
+
+### 📦 Clonar el repositorio
+```bash
+git clone https://github.com/Juaanantonioo/iw2025-2026-Proyecto.git
+cd iw2025-2026-Proyecto
+
+##  ⚙️ Compilar el proyecto
+mvn clean install
+
+## ▶️ Ejecutar la aplicación
+mvn spring-boot:run
+
+## La aplicación estará disponible en:
+http://localhost:8080
+
+## 🧠 Funcionalidades principales
+
+✅ Gestión de menús y productos
+✅ Toma y seguimiento de pedidos
+✅ Procesamiento de pagos (mock / simulado)
+✅ Panel de administración con estadísticas
+✅ Sistema de roles y autenticación
+
+## 🧪 Pruebas
+
+### Para ejecutar las pruebas unitarias:
+
+mvn test

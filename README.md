@@ -35,15 +35,15 @@ Base de Datos MySQL / H2
 
 ## 🛠️ Tecnologías Utilizadas
 
-| Componente | Tecnología |
-|:--|:--|
-| Lenguaje principal | Java 17 / 21 |
+| Componente | Tecnología               |
+|:--|:-------------------------|
+| Lenguaje principal | Java 17 / 21             |
 | Framework backend | Spring Boot 3 / Spring MVC |
-| Framework frontend | Vaadin 24+ |
+| Framework frontend | Vaadin 24+               |
 | Base de datos | MySQL (prod) / H2 (local) |
-| Dependencias | Apache Maven |
-| Control de versiones | Git + GitHub |
-| Entorno de desarrollo | Visual Studio Code |
+| Dependencias | Apache Maven             |
+| Control de versiones | Git + GitHub             |
+| Entorno de desarrollo | Intellij                 |
 
 ---
 

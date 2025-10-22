@@ -1,0 +1,7 @@
+com/fastfoodmanager/service/MenuService.class
+com/fastfoodmanager/domain/Product.class
+com/fastfoodmanager/repository/ProductRepository.class
+com/fastfoodmanager/FastFoodManager.class
+com/fastfoodmanager/views/ProductView.class
+com/fastfoodmanager/views/HomeView.class
+com/fastfoodmanager/service/ProductService.class

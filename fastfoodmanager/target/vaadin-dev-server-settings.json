@@ -1,0 +1,18 @@
+{
+  "frontendFolder": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/./src/main/frontend",
+  "themeFolder": "themes",
+  "themeResourceFolder": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/./src/main/frontend/generated/jar-resources",
+  "staticOutput": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/classes/META-INF/VAADIN/webapp/VAADIN/static",
+  "generatedFolder": "generated",
+  "statsOutput": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/classes/META-INF/VAADIN/config",
+  "frontendBundleOutput": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/classes/META-INF/VAADIN/webapp",
+  "devBundleOutput": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/dev-bundle/webapp",
+  "devBundleStatsOutput": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/dev-bundle/config",
+  "i18nOutput": "target/classes/vaadin-i18n",
+  "jarResourcesFolder": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/./src/main/frontend/generated/jar-resources",
+  "themeName": "",
+  "clientServiceWorkerSource": "/Users/juanantonio/Desktop/UNI/4/IW/Proyecto/iw2025-2026-Proyecto/fastfoodmanager/target/sw.ts",
+  "pwaEnabled": false,
+  "offlineEnabled": false,
+  "offlinePath": "'offline.html'"
+}

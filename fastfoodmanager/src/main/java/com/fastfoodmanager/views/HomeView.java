@@ -16,7 +16,7 @@ public class HomeView extends VerticalLayout {
     public HomeView(MenuService menuService) {
         this.menuService = menuService;
 
-        add(new H1("Welcome to Fast Food Manager"));
+        add(new H1("Welcome to Fast&Tasty"));
         add(new RouterLink("Ir a gestión de productos", ProductView.class)); // opcional
 
         grid.addColumn(Product::getName).setHeader("Producto").setAutoWidth(true);

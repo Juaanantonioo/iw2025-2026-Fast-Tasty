@@ -16,6 +16,8 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.DoubleRangeValidator;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.router.RouterLink;
+
 
 @Route("products")
 public class ProductView extends VerticalLayout {
@@ -38,6 +40,8 @@ public class ProductView extends VerticalLayout {
         this.service = service;
 
         add(new H1("Gestión de productos"));
+        add(new RouterLink("Ir a vista de productos", HomeView.class)); // opcional
+
         price.setStep(0.10); price.setMin(0.0);
 
         var actions = new HorizontalLayout(save, clear, delete);

@@ -9,5 +9,8 @@ import java.util.List;
 public class MenuService {
     private final ProductRepository repo;
     public MenuService(ProductRepository repo) { this.repo = repo; }
-    public List<Product> findActiveProducts() { return repo.findByActiveTrue(); }
+
+    public List<Product> findActiveProducts() {
+        return repo.findByActiveTrue();
+    }
 }

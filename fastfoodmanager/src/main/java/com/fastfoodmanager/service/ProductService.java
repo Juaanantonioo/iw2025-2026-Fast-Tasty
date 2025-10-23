@@ -8,22 +8,21 @@ import java.util.List;
 
 @Service
 public class ProductService {
+    private final ProductRepository repo;
 
-    private final ProductRepository repository;
-
-    public ProductService(ProductRepository repository) {
-        this.repository = repository;
+    public ProductService(ProductRepository repo) {
+        this.repo = repo;
     }
 
     public List<Product> findAll() {
-        return repository.findAll();
+        return repo.findAll();
     }
 
-    public Product save(Product product) {
-        return repository.save(product);
+    public Product save(Product p) {
+        return repo.save(p);
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        repo.deleteById(id);
     }
 }

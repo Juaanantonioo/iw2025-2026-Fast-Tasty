@@ -1,0 +1,27 @@
+h1 {
+  text-align: center;
+  color: #ff5722;
+  font-family: 'Poppins', sans-serif;
+}
+
+vaadin-login-form {
+  max-width: 400px;
+  margin: auto;
+  background-color: #fff3e0;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+button {
+  background-color: #ff9800;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover {
+  transform: scale(1.05);
+  background-color: #ffb74d;
+}

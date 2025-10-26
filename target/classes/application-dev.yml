@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:ffm;DB_CLOSE_DELAY=-1;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    defer-datasource-initialization: true  # <- importante para que data.sql vaya después de JPA
+  sql:
+    init:
+      mode: always  # extra por si acaso
+
+h2:
+  console:
+    enabled: true

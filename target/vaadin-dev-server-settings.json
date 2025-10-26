@@ -1,0 +1,18 @@
+{
+  "frontendFolder": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/./src/main/frontend",
+  "themeFolder": "themes",
+  "themeResourceFolder": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/./src/main/frontend/generated/jar-resources",
+  "staticOutput": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/target/classes/META-INF/VAADIN/webapp/VAADIN/static",
+  "generatedFolder": "generated",
+  "statsOutput": "C:\\Users\\34659\\IdeaProjects\\iw2025-2026-Fast-Tasty\\fastfoodmanager\\target\\classes\\META-INF\\VAADIN\\config",
+  "frontendBundleOutput": "C:\\Users\\34659\\IdeaProjects\\iw2025-2026-Fast-Tasty\\fastfoodmanager\\target\\classes\\META-INF\\VAADIN\\webapp",
+  "devBundleOutput": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/target/dev-bundle/webapp",
+  "devBundleStatsOutput": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/target/dev-bundle/config",
+  "i18nOutput": "target/classes/vaadin-i18n",
+  "jarResourcesFolder": "C:/Users/34659/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/./src/main/frontend/generated/jar-resources",
+  "themeName": "my-theme",
+  "clientServiceWorkerSource": "C:\\Users\\34659\\IdeaProjects\\iw2025-2026-Fast-Tasty\\fastfoodmanager\\target\\sw.ts",
+  "pwaEnabled": false,
+  "offlineEnabled": false,
+  "offlinePath": "'offline.html'"
+}

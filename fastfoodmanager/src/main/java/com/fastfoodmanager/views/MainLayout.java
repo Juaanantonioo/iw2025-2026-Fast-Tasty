@@ -44,6 +44,7 @@ public class MainLayout extends AppLayout {
 
         // Barra superior
         HorizontalLayout bar = new HorizontalLayout(title, tabs, right);
+        bar.addClassName("app-topbar");
         bar.setWidthFull();
         bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         bar.expand(tabs);

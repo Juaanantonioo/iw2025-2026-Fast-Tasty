@@ -6,54 +6,68 @@ import com.fastfoodmanager.service.UserService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.login.LoginForm;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.html.Anchor;
+import com.vaadin.flow.component.login.LoginI18n;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.VaadinSession;
 
-@PageTitle("Login")
 @Route("login")
+@PageTitle("Iniciar sesión | FastTasty")
 public class LoginView extends VerticalLayout {
 
-    private final UserService userService;
-
     public LoginView(UserService userService) {
-        this.userService = userService;
-
+        // Layout base
         setSizeFull();
-        setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-        setJustifyContentMode(JustifyContentMode.CENTER);
+        setPadding(false);
+        setSpacing(false);
 
-        H1 title = new H1("🍔 FastTasty");
+        // ----- Título y formulario (mismas variables que usamos después) -----
+        H1 title = new H1("Fast&Tasty");
         LoginForm login = new LoginForm();
+        login.setI18n(spanishI18n());
         login.setForgotPasswordButtonVisible(false);
 
-        // Enlace a registro
-        Anchor signup = new Anchor("register", "¿No tienes cuenta? Crear cuenta");
-        HorizontalLayout under = new HorizontalLayout(signup);
-        under.setPadding(false);
-        under.setSpacing(false);
+        // Listener de login
+        login.addLoginListener(e -> {
+            final String username = e.getUsername();
+            final String rawPassword = e.getPassword();
 
-        login.addLoginListener(e -> doLogin(e.getUsername(), e.getPassword()));
+            if (userService.authenticate(username, rawPassword)) {
+                User user = userService.findByUsername(username).orElseThrow();
+                VaadinSession.getCurrent().setAttribute(User.class, user);
 
-        add(title, login, under);
+                if (user.getRole() == Role.ADMIN) {
+                    UI.getCurrent().navigate("admin/users");
+                } else {
+                    UI.getCurrent().navigate(""); // alias de HomeView (/)
+                }
+            } else {
+                Notification.show("Credenciales inválidas", 2500, Notification.Position.MIDDLE);
+            }
+        });
+
+        // ----- Wrapper estilizado (usa .login-wrapper del CSS) -----
+        VerticalLayout wrapper = new VerticalLayout(title, login);
+        wrapper.addClassName("login-wrapper");
+        wrapper.setSizeFull();
+        wrapper.setSpacing(false);
+        wrapper.setPadding(false);
+        wrapper.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
+
+        add(wrapper);
     }
 
-    private void doLogin(String username, String rawPassword) {
-        if (userService.authenticate(username, rawPassword)) {
-            User user = userService.findByUsername(username).orElseThrow();
-            VaadinSession.getCurrent().setAttribute(User.class, user);
-
-            if (user.getRole() == Role.ADMIN) {
-                UI.getCurrent().navigate("admin/users");
-            } else {
-                UI.getCurrent().navigate("home");
-            }
-        } else {
-            Notification.show("Credenciales inválidas", 2500, Notification.Position.MIDDLE);
-        }
+    private LoginI18n spanishI18n() {
+        LoginI18n i18n = LoginI18n.createDefault();
+        i18n.getHeader().setTitle("Iniciar sesión");
+        i18n.getHeader().setDescription("Introduce tus credenciales");
+        i18n.getForm().setUsername("Usuario");
+        i18n.getForm().setPassword("Contraseña");
+        i18n.getForm().setSubmit("Acceder");
+        i18n.getErrorMessage().setTitle("Error de autenticación");
+        i18n.getErrorMessage().setMessage("Usuario o contraseña incorrectos.");
+        return i18n;
     }
 }

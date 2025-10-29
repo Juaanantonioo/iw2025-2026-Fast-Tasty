@@ -194,14 +194,16 @@
   "Frontend/generated/jar-resources/vaadin-popover/popover.ts",
   "Frontend/generated/jar-resources/vaadin-time-picker/timepickerConnector.js",
   "Frontend/generated/jar-resources/virtualListConnector.js",
-  "Frontend/themes/my-theme/home.css",
+  "Frontend/themes/my-theme/carrito.css",
+  "Frontend/themes/my-theme/carta.css",
   "Frontend/themes/my-theme/login.css",
   "Frontend/themes/my-theme/register.css",
   "Frontend/themes/my-theme/welcome.css"
  ],
  "frontendHashes": {
   "index.html": "42f26f1a6a4f4b0bc8c15072283b833d378cd1d6f173a0b12a0daa0d57292cb3",
-  "themes/my-theme/home.css": "d24d75ffc79b8de7435044e30eddba4fe12e2b1854f3ffe6ca4539bf74215a68",
+  "themes/my-theme/carrito.css": "443089d599914cf04bccd0c46d4f7fb9c9ac8205a2c19c15e0d3ccd9f0295d46",
+  "themes/my-theme/carta.css": "2cc277d6b6f3cdd551cab5210794feb55d7fb1d1d8b6f47ce51487b348789088",
   "themes/my-theme/login.css": "1e2146fbf00d82f5ad1a434c836bbfe4acd45404c2ce24306a360435df04662f",
   "themes/my-theme/register.css": "7fb1d4e52fa3d0a635284e0bbb87c5e7b3759474df1bad549000cee3f9af59c9",
   "themes/my-theme/welcome.css": "8269bbe9bf7499ea88caf4fb4d7942faa0091f5f99f15ddcb5d5551cc7370c34",
@@ -228,12 +230,12 @@
  },
  "themeJsonContents": {},
  "entryScripts": [
-  "VAADIN/build/indexhtml-CH07PwuP.js"
+  "VAADIN/build/indexhtml-DVzbfme4.js"
  ],
  "webComponents": [],
  "cvdlModules": {},
  "packageJsonHash": "e42e17b9d8eabc950d1674d14405b442b6ebeddd5e95b485654f7a784eb81332",
  "indexHtmlGenerated": [
-  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-CH07PwuP.js\"></script>"
+  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-DVzbfme4.js\"></script>"
  ]
 }

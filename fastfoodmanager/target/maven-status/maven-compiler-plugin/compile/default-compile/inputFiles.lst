@@ -1,16 +1,18 @@
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/AppShell.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/FastFoodManager.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/domain/Product.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/domain/User.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/repository/ProductRepository.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/repository/UserRepository.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/MenuService.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/ProductService.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/UserService.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/AdminUsersView.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/CartaView.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/LoginView.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/MainLayout.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/ProductView.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/RegisterView.java
-/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/WelcomeView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\AppShell.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\domain\Product.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\domain\User.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\FastFoodManager.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\repository\ProductRepository.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\repository\UserRepository.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\service\CartService.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\service\MenuService.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\service\ProductService.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\service\UserService.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\AdminUsersView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\CarritoView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\CartaView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\LoginView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\MainLayout.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\ProductView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\RegisterView.java
+D:\Universidad_ESI\4to año\IW\IdeaProjects\fastfoodmanager\src\main\java\com\fastfoodmanager\views\WelcomeView.java

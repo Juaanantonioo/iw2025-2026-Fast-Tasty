@@ -1,7 +1,16 @@
+com/fastfoodmanager/views/ProductView.class
+com/fastfoodmanager/views/AdminUsersView.class
+com/fastfoodmanager/AppShell.class
 com/fastfoodmanager/service/MenuService.class
 com/fastfoodmanager/domain/Product.class
+com/fastfoodmanager/views/RegisterView.class
+com/fastfoodmanager/domain/User$Role.class
+com/fastfoodmanager/service/UserService.class
 com/fastfoodmanager/repository/ProductRepository.class
+com/fastfoodmanager/domain/User.class
+com/fastfoodmanager/repository/UserRepository.class
 com/fastfoodmanager/FastFoodManager.class
-com/fastfoodmanager/views/ProductView.class
+com/fastfoodmanager/views/LoginView.class
+com/fastfoodmanager/views/MainLayout.class
 com/fastfoodmanager/views/HomeView.class
 com/fastfoodmanager/service/ProductService.class

@@ -19,7 +19,8 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
 
 
-@Route("products")
+@Route(value = "products", layout = MainLayout.class)
+
 public class ProductView extends VerticalLayout {
     private final ProductService service;
 

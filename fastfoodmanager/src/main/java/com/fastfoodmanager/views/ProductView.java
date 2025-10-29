@@ -41,7 +41,7 @@ public class ProductView extends VerticalLayout {
         this.service = service;
 
         add(new H1("Gestión de productos"));
-        add(new RouterLink("Ir a vista de productos", HomeView.class)); // opcional
+        add(new RouterLink("Ir a vista de productos", WelcomeView.class)); // opcional
 
         price.setStep(0.10); price.setMin(0.0);
 

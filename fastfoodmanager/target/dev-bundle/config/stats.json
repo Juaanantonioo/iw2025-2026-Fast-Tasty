@@ -194,11 +194,13 @@
   "Frontend/generated/jar-resources/vaadin-popover/popover.ts",
   "Frontend/generated/jar-resources/vaadin-time-picker/timepickerConnector.js",
   "Frontend/generated/jar-resources/virtualListConnector.js",
-  "Frontend/themes/my-theme/home.css"
+  "Frontend/themes/my-theme/home.css",
+  "Frontend/themes/my-theme/welcome.css"
  ],
  "frontendHashes": {
   "index.html": "42f26f1a6a4f4b0bc8c15072283b833d378cd1d6f173a0b12a0daa0d57292cb3",
   "themes/my-theme/home.css": "d24d75ffc79b8de7435044e30eddba4fe12e2b1854f3ffe6ca4539bf74215a68",
+  "themes/my-theme/welcome.css": "8269bbe9bf7499ea88caf4fb4d7942faa0091f5f99f15ddcb5d5551cc7370c34",
   "ReactRouterOutletElement.tsx": "a81b8fd8d05a789cf8e06633a0ba880583b7243b9eac64d87b46684c6c30be10",
   "comboBoxConnector.js": "eeb83f89e9168b939a5d9cc5be56a03f28948e53604b9b483b88a411b1a8e843",
   "contextMenuConnector.js": "be6d7deca7c2e73ad50d832af551941097b152556bfbf920afb3aec1d1f27c94",
@@ -222,12 +224,12 @@
  },
  "themeJsonContents": {},
  "entryScripts": [
-  "VAADIN/build/indexhtml-LDSXBVBe.js"
+  "VAADIN/build/indexhtml-5mMGwTOk.js"
  ],
  "webComponents": [],
  "cvdlModules": {},
  "packageJsonHash": "e42e17b9d8eabc950d1674d14405b442b6ebeddd5e95b485654f7a784eb81332",
  "indexHtmlGenerated": [
-  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-LDSXBVBe.js\"></script>"
+  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-5mMGwTOk.js\"></script>"
  ]
 }

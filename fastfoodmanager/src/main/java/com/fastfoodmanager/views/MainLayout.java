@@ -19,10 +19,11 @@ public class MainLayout extends AppLayout {
         title.getStyle().set("font-size", "1.2rem").set("margin", "0");
 
         // Links comunes
-        RouterLink home = new RouterLink("Inicio", HomeView.class);
+        RouterLink home = new RouterLink("Inicio", WelcomeView.class);
+        RouterLink carta = new RouterLink("Carta", CartaView.class);
         RouterLink products = new RouterLink("Productos", ProductView.class);
 
-        HorizontalLayout tabs = new HorizontalLayout(home, products);
+        HorizontalLayout tabs = new HorizontalLayout(home, carta, products);
         tabs.setSpacing(true);
 
         // Parte derecha: Admin (si procede) + Logout

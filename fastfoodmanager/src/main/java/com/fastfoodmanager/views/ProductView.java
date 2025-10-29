@@ -17,9 +17,12 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.DoubleRangeValidator;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
+import jakarta.annotation.security.RolesAllowed;
 
 
-@Route("products")
+
+@Route(value = "products", layout = MainLayout.class)
+@RolesAllowed("ADMIN")
 public class ProductView extends VerticalLayout {
     private final ProductService service;
 
@@ -40,7 +43,7 @@ public class ProductView extends VerticalLayout {
         this.service = service;
 
         add(new H1("Gestión de productos"));
-        add(new RouterLink("Ir a vista de productos", HomeView.class)); // opcional
+        add(new RouterLink("Ir a vista de productos", WelcomeView.class)); // opcional
 
         price.setStep(0.10); price.setMin(0.0);
 

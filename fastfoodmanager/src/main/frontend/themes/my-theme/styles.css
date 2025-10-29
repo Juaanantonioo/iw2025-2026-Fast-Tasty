@@ -1,0 +1,101 @@
+
+/* ========= Global Lumo theme tweaks ========= */
+:root {
+    --lumo-font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    --lumo-primary-color: #ff5722;
+    --lumo-primary-color-50pct: rgba(255, 87, 34, 0.5);
+    --lumo-primary-color-10pct: rgba(255, 87, 34, 0.1);
+    --lumo-border-radius-m: 12px;
+    --lumo-border-radius-l: 16px;
+}
+
+/* Background for the whole app */
+html, body {
+    height: 100%;
+    background: radial-gradient(1200px 800px at 10% 10%, #fff3e0 0%, #ffffff 50%) fixed;
+}
+
+/* Generic page title */
+h1, .view-title {
+    text-align: center;
+    color: var(--lumo-primary-text-color);
+    font-weight: 700;
+    letter-spacing: .2px;
+    margin: 0;
+}
+
+/* ========= Login page ========= */
+
+/* If you wrap your login in a container with class 'login-wrapper' */
+.login-wrapper {
+    min-height: calc(100vh - 64px);
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+}
+
+/* Card look for the login form */
+vaadin-login-form::part(form) {
+    padding: 28px !important;
+    border-radius: 16px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.08);
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,.04);
+}
+
+/* Title inside the form (if used) */
+vaadin-login-form::part(form-title) {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #ff5722;
+}
+
+/* Inputs look a bit rounder */
+vaadin-text-field::part(input-field),
+vaadin-password-field::part(input-field) {
+    border-radius: 12px;
+}
+
+/* Login button */
+vaadin-login-form::part(submit-button) {
+    border-radius: 12px;
+}
+
+/* Forgot password -> hide or style */
+vaadin-login-form::part(forgot-password-button) {
+    color: var(--lumo-secondary-text-color);
+}
+
+/* Error message design */
+vaadin-login-form::part(error-message) {
+    border-radius: 12px;
+    background: #ffebee;
+    color: #b71c1c;
+}
+
+/* ========= Top navbar (from MainLayout) ========= */
+.app-topbar {
+    backdrop-filter: saturate(180%) blur(6px);
+    -webkit-backdrop-filter: saturate(180%) blur(6px);
+    background-color: rgba(255,255,255,.75);
+    border-bottom: 1px solid rgba(0,0,0,.06);
+}
+
+/* Make vaadin-tabs nicer for the navbar */
+.app-topbar vaadin-tabs::part(tabs) {
+    border-radius: 9999px;
+    padding: 2px;
+    background: rgba(0,0,0,.04);
+}
+.app-topbar vaadin-tab {
+    border-radius: 9999px;
+}
+
+/* ========= Product grid (HomeView) ========= */
+.products-grid {
+    background: #fff;
+    border: 1px solid rgba(0,0,0,.06);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.06);
+    padding: .25rem;
+}

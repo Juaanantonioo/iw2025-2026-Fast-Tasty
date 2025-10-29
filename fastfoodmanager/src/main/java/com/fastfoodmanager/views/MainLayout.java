@@ -10,47 +10,67 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.server.auth.AnonymousAllowed;
 
+@AnonymousAllowed
 public class MainLayout extends AppLayout {
 
     public MainLayout() {
-        // Título
+        // 🔹 Título
         H1 title = new H1("🍔 FastTasty");
-        title.getStyle().set("font-size", "1.2rem").set("margin", "0");
+        title.getStyle()
+                .set("font-size", "1.4rem")
+                .set("margin", "0")
+                .set("color", "#ff5c1a");
 
-        // Links comunes
+        // 🔹 Enlaces comunes
         RouterLink home = new RouterLink("Inicio", WelcomeView.class);
         RouterLink carta = new RouterLink("Carta", CartaView.class);
-        RouterLink products = new RouterLink("Productos", ProductView.class);
 
-        HorizontalLayout tabs = new HorizontalLayout(home, carta, products);
+        HorizontalLayout tabs = new HorizontalLayout(home, carta);
         tabs.setSpacing(true);
+        tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // Parte derecha: Admin (si procede) + Logout
-        HorizontalLayout right = new HorizontalLayout();
-        right.setSpacing(true);
-
+        // 🔹 Usuario actual
         User current = VaadinSession.getCurrent().getAttribute(User.class);
+
+        // 🔹 Si es ADMIN, añadimos enlace "Productos"
         if (current != null && current.getRole() == Role.ADMIN) {
-            RouterLink admin = new RouterLink("Administración", AdminUsersView.class);
-            right.add(admin);
+            RouterLink products = new RouterLink("Productos", ProductView.class);
+            tabs.add(products);
         }
 
-        Button logout = new Button("Salir", e -> {
-            VaadinSession.getCurrent().getSession().invalidate();
-            VaadinSession.getCurrent().close();
-            UI.getCurrent().navigate("login");
-        });
-        right.add(logout);
+        // 🔹 Sección derecha (logout)
+        HorizontalLayout right = new HorizontalLayout();
+        right.setSpacing(true);
+        right.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // Barra superior
+        if (current != null) {
+            Button logout = new Button("Salir", e -> {
+                VaadinSession.getCurrent().getSession().invalidate();
+                VaadinSession.getCurrent().close();
+                UI.getCurrent().navigate("login");
+            });
+            logout.getStyle()
+                    .set("background-color", "#f7f7f7")
+                    .set("color", "#333")
+                    .set("border-radius", "8px")
+                    .set("padding", "4px 12px")
+                    .set("cursor", "pointer");
+            right.add(logout);
+        }
+
+        // 🔹 Barra superior
         HorizontalLayout bar = new HorizontalLayout(title, tabs, right);
         bar.addClassName("app-topbar");
         bar.setWidthFull();
         bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         bar.expand(tabs);
         bar.setSpacing(true);
-        bar.getStyle().set("padding", "0.5rem 1rem");
+        bar.getStyle()
+                .set("padding", "0.6rem 1.2rem")
+                .set("background", "white")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.05)");
 
         addToNavbar(bar);
     }

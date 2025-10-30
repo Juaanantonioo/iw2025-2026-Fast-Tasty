@@ -15,6 +15,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import java.math.BigDecimal;
 
 import java.util.List;
 import java.util.Map;
@@ -96,13 +97,13 @@ public class CarritoView extends VerticalLayout {
         itemsLayout.setPadding(false);
         itemsLayout.setSpacing(true);
 
-        double total = 0.0;
+        BigDecimal total = BigDecimal.ZERO;
 
         for (Map.Entry<Product, Long> entry : productCounts.entrySet()) {
             Product product = entry.getKey();
             Long quantity = entry.getValue();
-            double subtotal = product.getPrice() * quantity;
-            total += subtotal;
+            BigDecimal subtotal = product.getPrice().multiply(BigDecimal.valueOf(quantity));
+            total = total.add(subtotal);
 
             HorizontalLayout itemLayout = createCartItemLayout(product, quantity, subtotal);
             itemsLayout.add(itemLayout);
@@ -114,7 +115,7 @@ public class CarritoView extends VerticalLayout {
         add(itemsLayout, summary, actionButtons);
     }
 
-    private HorizontalLayout createCartItemLayout(Product product, Long quantity, double subtotal) {
+    private HorizontalLayout createCartItemLayout(Product product, Long quantity, BigDecimal subtotal) {
         HorizontalLayout itemLayout = new HorizontalLayout();
         itemLayout.addClassName("cart-item");
         itemLayout.setWidthFull();
@@ -137,7 +138,7 @@ public class CarritoView extends VerticalLayout {
 
         Div priceInfo = new Div();
         priceInfo.addClassName("price-info");
-        priceInfo.setText(String.format("%.2f €", subtotal));
+        priceInfo.setText(String.format(" " + subtotal.toString() + " €"));
 
         // Botones para modificar cantidad
         Button removeButton = new Button("-", e -> {
@@ -161,12 +162,12 @@ public class CarritoView extends VerticalLayout {
         return itemLayout;
     }
 
-    private Div createOrderSummary(double total) {
+    private Div createOrderSummary(BigDecimal total) {
         Div summary = new Div();
         summary.addClassName("order-summary");
 
         H2 summaryTitle = new H2("Resumen del Pedido");
-        Paragraph totalText = new Paragraph(String.format("Total: %.2f €", total));
+        Paragraph totalText = new Paragraph(String.format("Total: " + total.toString() + " €"));
         totalText.addClassName("total-price");
 
         summary.add(summaryTitle, totalText);

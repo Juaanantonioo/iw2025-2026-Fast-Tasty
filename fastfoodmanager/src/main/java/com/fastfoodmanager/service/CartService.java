@@ -2,6 +2,7 @@ package com.fastfoodmanager.service;
 
 import com.fastfoodmanager.domain.Product;
 import org.springframework.stereotype.Service;
+import java.math.BigDecimal;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +32,9 @@ public class CartService {
         return cartItems.size();
     }
 
-    public double getTotalPrice() {
+    public BigDecimal getTotalPrice() {
         return cartItems.stream()
-                .mapToDouble(Product::getPrice)
-                .sum();
+                .map(Product::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

@@ -1,7 +1,7 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Product;
-import com.fastfoodmanager.service.ProductService; // <- importante
+import com.fastfoodmanager.service.ProductService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.grid.Grid;
@@ -10,23 +10,22 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.textfield.TextField; // Importar TextField
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
-import com.vaadin.flow.data.validator.DoubleRangeValidator;
+import com.vaadin.flow.data.converter.StringToBigDecimalConverter;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouterLink;
+import java.math.BigDecimal;
 
 
 @Route(value = "products", layout = MainLayout.class)
-
 public class ProductView extends VerticalLayout {
     private final ProductService service;
 
     private final TextField name = new TextField("Name");
     private final TextField description = new TextField("Description");
-    private final NumberField price = new NumberField("Price");
+    private final TextField price = new TextField("Price"); // Cambiado a TextField
     private final Checkbox active = new Checkbox("Active", true);
 
     private final Button save = new Button("Save");
@@ -41,9 +40,11 @@ public class ProductView extends VerticalLayout {
         this.service = service;
 
         add(new H1("Gestión de productos"));
-        add(new RouterLink("Ir a vista de productos", WelcomeView.class)); // opcional
+        add(new RouterLink("Ir a vista de productos", WelcomeView.class));
 
-        price.setStep(0.10); price.setMin(0.0);
+        // Configurar el campo de precio
+        price.setPlaceholder("0.00");
+        price.setPattern("[0-9]*\\.?[0-9]*");
 
         var actions = new HorizontalLayout(save, clear, delete);
         var form = new HorizontalLayout(name, description, price, active, actions);
@@ -58,20 +59,30 @@ public class ProductView extends VerticalLayout {
 
         grid.asSingleSelect().addValueChangeListener(ev -> {
             var sel = ev.getValue();
-            if (sel != null) { current = sel; binder.readBean(current); }
-            else resetForm();
+            if (sel != null) {
+                current = sel;
+                binder.readBean(current);
+            } else {
+                resetForm();
+            }
         });
 
         add(form, grid);
         setSizeFull();
 
+        // Configurar binding con conversor
         binder.forField(name).asRequired("Name is required")
                 .bind(Product::getName, Product::setName);
         binder.forField(description)
                 .bind(Product::getDescription, Product::setDescription);
+
         binder.forField(price).asRequired("Price is required")
-                .withValidator(new DoubleRangeValidator("Price must be >= 0", 0.0, null))
+                .withConverter(
+                        new StringToBigDecimalConverter("Must be a valid number"))
+                .withValidator(value -> value.compareTo(BigDecimal.ZERO) >= 0,
+                        "Price must be >= 0")
                 .bind(Product::getPrice, Product::setPrice);
+
         binder.forField(active)
                 .bind(Product::isActive, Product::setActive);
 
@@ -79,9 +90,14 @@ public class ProductView extends VerticalLayout {
         clear.addClickListener(e -> resetForm());
         delete.addClickListener(e -> {
             var sel = grid.asSingleSelect().getValue();
-            if (sel == null) { Notification.show("Select a row to delete"); return; }
+            if (sel == null) {
+                Notification.show("Select a row to delete");
+                return;
+            }
             service.delete(sel.getId());
-            Notification.show("Deleted"); load(); resetForm();
+            Notification.show("Deleted");
+            load();
+            resetForm();
         });
 
         load();
@@ -100,6 +116,13 @@ public class ProductView extends VerticalLayout {
         }
     }
 
-    private void load() { grid.setItems(service.findAll()); }
-    private void resetForm() { current = new Product(); binder.readBean(current); grid.deselectAll(); }
+    private void load() {
+        grid.setItems(service.findAll());
+    }
+
+    private void resetForm() {
+        current = new Product();
+        binder.readBean(current);
+        grid.deselectAll();
+    }
 }

@@ -8,10 +8,12 @@
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/security/MyUserDetails.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/security/MyUserDetailsService.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/security/SecurityConfig.java
+/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/CartService.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/MenuService.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/ProductService.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/service/UserService.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/AdminUsersView.java
+/Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/CarritoView.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/CartaView.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/LoginView.java
 /Users/juanantonio/IdeaProjects/iw2025-2026-Fast-Tasty/fastfoodmanager/src/main/java/com/fastfoodmanager/views/MainLayout.java

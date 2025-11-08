@@ -1,7 +1,5 @@
 package com.fastfoodmanager.views;
 
-import com.fastfoodmanager.domain.User;
-import com.fastfoodmanager.domain.User.Role;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
@@ -9,21 +7,23 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.router.RouterLink;
-import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 @AnonymousAllowed
 public class MainLayout extends AppLayout {
 
     public MainLayout() {
-        // 🔹 Título
+        // Logo / título
         H1 title = new H1("🍔 FastTasty");
         title.getStyle()
                 .set("font-size", "1.4rem")
                 .set("margin", "0")
                 .set("color", "#ff5c1a");
 
-        // 🔹 Enlaces comunes
+        // Enlaces comunes
         RouterLink home = new RouterLink("Inicio", WelcomeView.class);
         RouterLink carta = new RouterLink("Carta", CartaView.class);
 
@@ -31,36 +31,46 @@ public class MainLayout extends AppLayout {
         tabs.setSpacing(true);
         tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // 🔹 Usuario actual
-        User current = VaadinSession.getCurrent().getAttribute(User.class);
-
-        // 🔹 Si es ADMIN, añadimos enlace "Productos"
-        if (current != null && current.getRole() == Role.ADMIN) {
-            RouterLink products = new RouterLink("Productos", ProductView.class);
-            tabs.add(products);
+        // Enlace solo para ADMIN
+        if (hasRole("ADMIN")) {
+            RouterLink productos = new RouterLink("Productos", ProductView.class); // ajusta si tu ruta es otra
+            tabs.add(productos);
         }
 
-        // 🔹 Sección derecha (logout)
+        // Lado derecho: Entrar/Salir
         HorizontalLayout right = new HorizontalLayout();
         right.setSpacing(true);
         right.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        if (current != null) {
+        if (isAuthenticated()) {
             Button logout = new Button("Salir", e -> {
-                VaadinSession.getCurrent().getSession().invalidate();
-                VaadinSession.getCurrent().close();
-                UI.getCurrent().navigate("login");
+                // Cierra sesión y vuelve a login
+                UI.getCurrent().getPage().setLocation("logout"); // si tienes endpoint /logout con Spring Security
+                // Si no tienes /logout, descomenta lo siguiente y comenta la línea anterior:
+                // VaadinSession.getCurrent().getSession().invalidate();
+                // VaadinSession.getCurrent().close();
+                // UI.getCurrent().navigate("login");
             });
             logout.getStyle()
                     .set("background-color", "#f7f7f7")
                     .set("color", "#333")
                     .set("border-radius", "8px")
-                    .set("padding", "4px 12px")
+                    .set("padding", "6px 14px")
+                    .set("font-weight", "600")
                     .set("cursor", "pointer");
             right.add(logout);
+        } else {
+            Button login = new Button("Entrar", e -> UI.getCurrent().navigate("login"));
+            login.getStyle()
+                    .set("background-color", "#ff7b00")
+                    .set("color", "#fff")
+                    .set("border-radius", "8px")
+                    .set("padding", "6px 14px")
+                    .set("font-weight", "600");
+            right.add(login);
         }
 
-        // 🔹 Barra superior
+        // Barra superior
         HorizontalLayout bar = new HorizontalLayout(title, tabs, right);
         bar.addClassName("app-topbar");
         bar.setWidthFull();
@@ -73,5 +83,20 @@ public class MainLayout extends AppLayout {
                 .set("box-shadow", "0 2px 8px rgba(0,0,0,0.05)");
 
         addToNavbar(bar);
+    }
+
+    private boolean isAuthenticated() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
+    }
+
+    private boolean hasRole(String role) {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        if (a == null) return false;
+        String needed = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        for (GrantedAuthority ga : a.getAuthorities()) {
+            if (needed.equals(ga.getAuthority())) return true;
+        }
+        return false;
     }
 }

@@ -204,7 +204,7 @@
   "themes/my-theme/home.css": "d24d75ffc79b8de7435044e30eddba4fe12e2b1854f3ffe6ca4539bf74215a68",
   "themes/my-theme/login.css": "1e2146fbf00d82f5ad1a434c836bbfe4acd45404c2ce24306a360435df04662f",
   "themes/my-theme/register.css": "7fb1d4e52fa3d0a635284e0bbb87c5e7b3759474df1bad549000cee3f9af59c9",
-  "themes/my-theme/welcome.css": "adf4de15cde9b2591bc5ea2bb7da29211c14b4a8129b1e3d636592349922d29b",
+  "themes/my-theme/welcome.css": "e969f0de7197ab2521ec8d22bb00af2e9558393b406464e4a5335a153f0b5b7b",
   "ReactRouterOutletElement.tsx": "a81b8fd8d05a789cf8e06633a0ba880583b7243b9eac64d87b46684c6c30be10",
   "comboBoxConnector.js": "eeb83f89e9168b939a5d9cc5be56a03f28948e53604b9b483b88a411b1a8e843",
   "contextMenuConnector.js": "be6d7deca7c2e73ad50d832af551941097b152556bfbf920afb3aec1d1f27c94",
@@ -228,12 +228,12 @@
  },
  "themeJsonContents": {},
  "entryScripts": [
-  "VAADIN/build/indexhtml-xdaztKrV.js"
+  "VAADIN/build/indexhtml-CeoBa05B.js"
  ],
  "webComponents": [],
  "cvdlModules": {},
  "packageJsonHash": "e42e17b9d8eabc950d1674d14405b442b6ebeddd5e95b485654f7a784eb81332",
  "indexHtmlGenerated": [
-  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-xdaztKrV.js\"></script>"
+  "  <script type=\"module\" crossorigin src=\"./VAADIN/build/indexhtml-CeoBa05B.js\"></script>"
  ]
 }

@@ -13,6 +13,8 @@ com/fastfoodmanager/bootstrap/AdminSeeder.class
 com/fastfoodmanager/views/LoginView.class
 com/fastfoodmanager/security/MyUserDetailsService.class
 com/fastfoodmanager/security/MyUserDetails.class
+com/fastfoodmanager/views/CarritoView.class
+com/fastfoodmanager/service/CartService.class
 com/fastfoodmanager/views/ProductView.class
 com/fastfoodmanager/service/MenuService.class
 com/fastfoodmanager/FastFoodManager.class

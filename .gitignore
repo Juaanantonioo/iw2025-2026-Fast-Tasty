@@ -12,3 +12,5 @@ fastfoodmanager/target/tab.launch
 
 # Archivos generados por el sistema
 .DS_Store
+
+fastfoodmanager/src/main/frontend/generated/

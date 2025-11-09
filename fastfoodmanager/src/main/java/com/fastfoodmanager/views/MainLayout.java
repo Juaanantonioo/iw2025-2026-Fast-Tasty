@@ -4,6 +4,7 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.router.RouterLink;
@@ -25,30 +26,37 @@ public class MainLayout extends AppLayout {
                 .set("color", "#ff5c1a");
 
         // Enlaces comunes
-        RouterLink home = new RouterLink("Inicio", WelcomeView.class);
-        RouterLink carta = new RouterLink("Carta", CartaView.class);
+        RouterLink home  = new RouterLink("Inicio", WelcomeView.class);
+        RouterLink carta = new RouterLink("Carta",  CartaView.class);
 
         HorizontalLayout tabs = new HorizontalLayout(home, carta);
         tabs.setSpacing(true);
         tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // ÚNICO enlace admin
+        // 👉 Enlaces ADMIN
         if (hasRole("ADMIN")) {
             RouterLink productos = new RouterLink("Gestionar productos", ProductView.class);
-            tabs.add(productos);
+            RouterLink usuarios  = new RouterLink("Gestionar usuarios", AdminUsersView.class);
+            tabs.add(productos, usuarios);
         }
 
-        // Lado derecho: Entrar/Salir
+        // 👉 Enlaces OPERADOR
+        if (hasRole("OPERATOR")) {
+            tabs.add(new RouterLink("Pedidos", OperatorOrdersView.class));
+            tabs.add(new RouterLink("Stock", OperatorStockView.class));
+        }
+
+        // Lado derecho: saludo + Entrar/Salir
         HorizontalLayout right = new HorizontalLayout();
         right.setSpacing(true);
         right.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
         if (isAuthenticated()) {
+            right.add(new Span("Hola, " + getUsername()));
             Button logout = new Button("Salir", e -> {
-                // cerrar sesión y volver a Welcome (/)
                 VaadinSession.getCurrent().getSession().invalidate();
                 VaadinSession.getCurrent().close();
-                UI.getCurrent().navigate(""); // WelcomeView (ruta "")
+                UI.getCurrent().navigate(""); // vuelve al inicio
             });
             logout.getStyle()
                     .set("background-color", "#f7f7f7")
@@ -87,6 +95,11 @@ public class MainLayout extends AppLayout {
     private boolean isAuthenticated() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
         return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
+    }
+
+    private String getUsername() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        return (a != null) ? a.getName() : "Invitado";
     }
 
     private boolean hasRole(String role) {

@@ -3,9 +3,7 @@ package com.fastfoodmanager.views;
 import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.domain.User.Role;
 import com.fastfoodmanager.service.UserService;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
@@ -15,80 +13,88 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.VaadinSession;
+import jakarta.annotation.security.RolesAllowed;
 
-@PageTitle("Administración de usuarios")
+@PageTitle("Usuarios | FastTasty")
 @Route(value = "admin/users", layout = MainLayout.class)
+@RolesAllowed("ADMIN")
 public class AdminUsersView extends VerticalLayout {
 
     private final UserService userService;
     private final Grid<User> grid = new Grid<>(User.class, false);
 
+    private final TextField username = new TextField("Nuevo operador - usuario");
+    private final PasswordField password = new PasswordField("Contraseña");
+
     public AdminUsersView(UserService userService) {
         this.userService = userService;
 
-        // 🔐 Protección mínima por sesión: solo ADMIN
-        User current = VaadinSession.getCurrent().getAttribute(User.class);
-        if (current == null || current.getRole() != Role.ADMIN) {
-            Notification.show("Debes ser ADMIN");
-            UI.getCurrent().navigate("login");
-            return;
-        }
+        setSizeFull();
+        setPadding(true);
+        setSpacing(true);
 
-        setWidthFull();
-        setMaxWidth("900px");
-        setAlignItems(Alignment.STRETCH);
-        add(new H2("👑 Administración de usuarios"));
+        // Título
+        add(new H2("Gestión de usuarios"));
 
-        // ----- Formulario de alta -----
-        TextField username = new TextField("Usuario");
+        // ---------- Alta de OPERADORES ----------
         username.setClearButtonVisible(true);
+        username.setRequired(true);
+        username.setMaxLength(30);
 
-        PasswordField password = new PasswordField("Contraseña");
         password.setClearButtonVisible(true);
+        password.setRequired(true);
 
-        ComboBox<Role> role = new ComboBox<>("Rol");
-        role.setItems(Role.values());
-        role.setValue(Role.OPERATOR);
+        Button addOperator = new Button("Crear operador", e -> createOperator());
+        addOperator.getStyle().set("background", "#ff7b00").set("color", "white");
 
-        Button add = new Button("Crear usuario", e -> {
-            try {
-                userService.registerUser(username.getValue().trim(),
-                        password.getValue(),
-                        role.getValue());
-                username.clear(); password.clear(); role.setValue(Role.OPERATOR);
-                refresh();
-                Notification.show("Usuario creado");
-            } catch (Exception ex) {
-                Notification.show("Error: " + ex.getMessage(), 4000, Notification.Position.MIDDLE);
-            }
-        });
-
-        var form = new HorizontalLayout(username, password, role, add);
+        HorizontalLayout form = new HorizontalLayout(username, password, addOperator);
         form.setDefaultVerticalComponentAlignment(Alignment.END);
         add(form);
 
-        // ----- Grid -----
+        // ---------- Grid de usuarios ----------
         grid.addColumn(User::getId).setHeader("ID").setAutoWidth(true);
         grid.addColumn(User::getUsername).setHeader("Usuario").setAutoWidth(true);
         grid.addColumn(u -> u.getRole().name()).setHeader("Rol").setAutoWidth(true);
 
-        // Cambiar rol desde el grid (botones)
         grid.addComponentColumn(u -> {
-            ComboBox<Role> cb = new ComboBox<>();
-            cb.setItems(Role.values());
-            cb.setValue(u.getRole());
-            cb.addValueChangeListener(ev -> {
-                userService.changeRole(u.getId(), ev.getValue());
+            Button delete = new Button("Eliminar", ev -> {
+                // Evitamos borrar al admin principal
+                if ("admin".equalsIgnoreCase(u.getUsername())) {
+                    Notification.show("No se puede eliminar el admin principal");
+                    return;
+                }
+                userService.deleteUser(u.getId());
                 refresh();
-                Notification.show("Rol actualizado");
+                Notification.show("Usuario eliminado");
             });
-            return cb;
-        }).setHeader("Cambiar rol");
+            return delete;
+        }).setHeader("Acciones");
 
+        grid.setAllRowsVisible(true);
         add(grid);
 
         refresh();
+    }
+
+    private void createOperator() {
+        String u = username.getValue() == null ? "" : username.getValue().trim();
+        String p = password.getValue() == null ? "" : password.getValue().trim();
+
+        if (u.isEmpty() || p.isEmpty()) {
+            Notification.show("Usuario y contraseña obligatorios");
+            return;
+        }
+        try {
+            userService.registerUser(u, p, Role.OPERATOR);
+            username.clear();
+            password.clear();
+            refresh();
+            Notification.show("Operador creado");
+        } catch (IllegalArgumentException ex) {
+            Notification.show(ex.getMessage());
+        } catch (Exception ex) {
+            Notification.show("Error creando operador");
+        }
     }
 
     private void refresh() {

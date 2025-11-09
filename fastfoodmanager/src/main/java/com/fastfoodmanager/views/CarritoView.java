@@ -96,7 +96,7 @@ public class CarritoView extends VerticalLayout {
     }
 
     private void showCartItems(List<Product> cartItems) {
-        // === Agrupar por ID de producto ===
+        // Agrupar por ID de producto
         Map<Long, List<Product>> byId = cartItems.stream()
                 .collect(Collectors.groupingBy(Product::getId, LinkedHashMap::new, Collectors.toList()));
 
@@ -104,7 +104,7 @@ public class CarritoView extends VerticalLayout {
         itemsColumn.addClassName("cart-items-column");
         itemsColumn.setPadding(false);
         itemsColumn.setSpacing(true);
-        itemsColumn.setWidth("86%"); // ancho cómodo en centro
+        itemsColumn.setWidth("86%");
         itemsColumn.getStyle().set("margin", "0 auto");
 
         BigDecimal total = BigDecimal.ZERO;
@@ -121,14 +121,12 @@ public class CarritoView extends VerticalLayout {
             itemsColumn.add(createCartItemLayout(product, quantity, subtotal));
         }
 
-        // === RESUMEN CENTRADO ARRIBA ===
         Div summary = createOrderSummary(total);
         summary.addClassName("order-summary-card");
         summary.getStyle()
                 .set("margin", "8px auto 18px auto")
                 .set("width", "fit-content");
 
-        // Botones debajo
         HorizontalLayout actionButtons = createActionButtons();
 
         add(summary, itemsColumn, actionButtons);

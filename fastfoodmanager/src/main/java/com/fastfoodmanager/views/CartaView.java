@@ -43,7 +43,7 @@ public class CartaView extends VerticalLayout {
         setSizeFull();
         setAlignItems(Alignment.CENTER);
 
-        // ===== HERO =====
+        // HERO
         Div hero = new Div();
         hero.addClassName("hero-section");
         hero.getStyle().set("background", "linear-gradient(90deg, #ffb86b, #ff7b00)");
@@ -54,7 +54,7 @@ public class CartaView extends VerticalLayout {
         hero.getStyle().set("color", "white");
         hero.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
 
-        // --- Fila superior con GRID CORREGIDO ---
+        // GRID fila título + botón
         Div gridRow = new Div();
         gridRow.getStyle()
                 .set("display", "grid")
@@ -81,7 +81,7 @@ public class CartaView extends VerticalLayout {
 
         hero.add(gridRow, subtitle);
 
-        // ===== GRID DE PRODUCTOS =====
+        // GRID Productos
         Div productGrid = new Div();
         productGrid.addClassName("product-grid");
         productGrid.getStyle().set("display", "flex");
@@ -183,9 +183,9 @@ public class CartaView extends VerticalLayout {
                 currency.format(java.math.BigDecimal.valueOf(product.getPrice())));
         price.getStyle().set("font-weight", "700");
 
-        // === ALÉRGENOS: leer de BBDD y listar ===
+        // Listar Alérgenos
         UnorderedList allergensList = new UnorderedList();
-        String allergens = product.getAllergens();  // requiere campo en entidad Product
+        String allergens = product.getAllergens();
         if (allergens != null && !allergens.isBlank()) {
             Arrays.stream(allergens.split(","))
                     .map(String::trim)

@@ -27,19 +27,19 @@ public class ProductView extends VerticalLayout {
 
     private final ProductService service;
 
-    // ===== Form fields =====
+    // Formulario
     private final TextField name = new TextField("Nombre");
     private final TextArea description = new TextArea("Descripción");
     private final TextArea allergens = new TextArea("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
     private final Checkbox active = new Checkbox("Activo", true);
 
-    // ===== Actions =====
+    // Botones
     private final Button save = new Button("Guardar");
     private final Button clear = new Button("Limpiar");
     private final Button delete = new Button("Eliminar seleccionado");
 
-    // ===== Grid =====
+    // Grid
     private final Grid<Product> grid = new Grid<>(Product.class, false);
 
     private final Binder<Product> binder = new Binder<>(Product.class);
@@ -53,24 +53,15 @@ public class ProductView extends VerticalLayout {
         setSpacing(false);
         addClassName("products-admin-view");
 
-        // ===== Header =====
+        // Cabecera
         var header = new H1("Gestión de productos");
         header.getStyle()
                 .set("margin", "0")
                 .set("font-weight", "800")
                 .set("color", "#1f2937");
 
-        // enlaces rápidos arriba a la derecha
-        Anchor toHome = new Anchor("/", "Ir al inicio");
-        Anchor toCarta = new Anchor("/carta", "Ir a la carta");
-        HorizontalLayout topbar = new HorizontalLayout(header, new Div(), toHome, toCarta);
-        topbar.setWidthFull();
-        topbar.expand(topbar.getComponentAt(1));
-        topbar.setAlignItems(Alignment.CENTER);
-        topbar.getStyle().set("margin-bottom", "12px");
-        add(topbar);
 
-        // ===== Actions bar =====
+        // Botones
         stylePrimary(save);
         styleTertiary(clear);
         styleError(delete);
@@ -79,7 +70,7 @@ public class ProductView extends VerticalLayout {
         actionsBar.setAlignItems(Alignment.CENTER);
         actionsBar.getStyle().set("gap", "10px");
 
-        // ===== Form Card =====
+        // Formulario
         description.setMaxLength(800);
         description.setHelperText("Máx. 800 caracteres");
         description.setWidthFull();
@@ -113,7 +104,7 @@ public class ProductView extends VerticalLayout {
                 .set("box-shadow", "0 2px 10px rgba(0,0,0,.06)")
                 .set("margin-bottom", "14px");
 
-        // ===== Grid =====
+        // Grid
         grid.addColumn(Product::getId).setHeader("Id").setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(Product::getName).setHeader("Nombre").setAutoWidth(true);
         grid.addColumn(Product::getDescription).setHeader("Descripción").setAutoWidth(true)
@@ -139,10 +130,10 @@ public class ProductView extends VerticalLayout {
             }
         });
 
-        // ===== Layout principal =====
+        // Layout Principal
         add(formCard, grid);
 
-        // ===== Binder & validation =====
+        // Validación
         binder.forField(name).asRequired("El nombre es obligatorio")
                 .bind(Product::getName, Product::setName);
 
@@ -159,7 +150,7 @@ public class ProductView extends VerticalLayout {
         binder.forField(active)
                 .bind(Product::isActive, Product::setActive);
 
-        // ===== Actions logic =====
+        // Eventos botones
         save.addClickListener(e -> onSave());
         clear.addClickListener(e -> resetForm());
         delete.addClickListener(e -> {
@@ -198,7 +189,7 @@ public class ProductView extends VerticalLayout {
         grid.deselectAll();
     }
 
-    // ===== Helpers =====
+    // Helpers
 
     private static String formatMoney(Double value) {
         if (value == null) return "";

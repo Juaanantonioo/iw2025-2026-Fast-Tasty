@@ -1,0 +1,14 @@
+# IntelliJ IDEA
+.idea/
+/workspace.xml
+
+# Maven/Java
+fastfoodmanager/target/
+
+# Vaadin
+fastfoodmanager/src/main/bundles/
+fastfoodmanager/target/dev-bundle/
+fastfoodmanager/target/tab.launch
+
+# Archivos generados por el sistema
+.DS_Store

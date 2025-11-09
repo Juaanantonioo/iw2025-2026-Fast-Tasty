@@ -7,6 +7,7 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -31,9 +32,9 @@ public class MainLayout extends AppLayout {
         tabs.setSpacing(true);
         tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // Enlace solo para ADMIN
+        // ÚNICO enlace admin
         if (hasRole("ADMIN")) {
-            RouterLink productos = new RouterLink("Productos", ProductView.class); // ajusta si tu ruta es otra
+            RouterLink productos = new RouterLink("Gestionar productos", ProductView.class);
             tabs.add(productos);
         }
 
@@ -44,12 +45,10 @@ public class MainLayout extends AppLayout {
 
         if (isAuthenticated()) {
             Button logout = new Button("Salir", e -> {
-                // Cierra sesión y vuelve a login
-                UI.getCurrent().getPage().setLocation("logout"); // si tienes endpoint /logout con Spring Security
-                // Si no tienes /logout, descomenta lo siguiente y comenta la línea anterior:
-                // VaadinSession.getCurrent().getSession().invalidate();
-                // VaadinSession.getCurrent().close();
-                // UI.getCurrent().navigate("login");
+                // cerrar sesión y volver a Welcome (/)
+                VaadinSession.getCurrent().getSession().invalidate();
+                VaadinSession.getCurrent().close();
+                UI.getCurrent().navigate(""); // WelcomeView (ruta "")
             });
             logout.getStyle()
                     .set("background-color", "#f7f7f7")

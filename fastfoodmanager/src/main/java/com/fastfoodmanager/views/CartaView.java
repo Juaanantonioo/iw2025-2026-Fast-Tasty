@@ -19,6 +19,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -47,55 +48,40 @@ public class CartaView extends VerticalLayout {
         hero.addClassName("hero-section");
         hero.getStyle().set("background", "linear-gradient(90deg, #ffb86b, #ff7b00)");
         hero.getStyle().set("border-radius", "12px");
-        hero.getStyle().set("padding", "30px 40px");
+        hero.getStyle().set("padding", "26px 32px");
         hero.getStyle().set("width", "86%");
         hero.getStyle().set("margin", "30px auto");
         hero.getStyle().set("color", "white");
         hero.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
 
-        // Título
+        // --- Fila superior con GRID CORREGIDO ---
+        Div gridRow = new Div();
+        gridRow.getStyle()
+                .set("display", "grid")
+                .set("grid-template-columns", "1fr auto 1fr")
+                .set("align-items", "center")
+                .set("gap", "16px");
+
         H1 title = new H1("Nuestra Carta 🍽️");
-        title.getStyle().set("margin", "0");
-        title.getStyle().set("font-weight", "800");
-        title.getStyle().set("font-size", "2.1rem");
-        title.getStyle().set("color", "#1f2937");
+        title.addClassName("hero-title");
+        title.getStyle().set("justify-self", "center");
 
-        // Botón Pedido (blanco)
         Button viewCartButton = new Button("🧾 Pedido", e -> UI.getCurrent().navigate("carrito"));
-        viewCartButton.getStyle().set("background-color", "#ffffff");
-        viewCartButton.getStyle().set("color", "#ff7b00");
-        viewCartButton.getStyle().set("font-weight", "700");
-        viewCartButton.getStyle().set("border-radius", "10px");
-        viewCartButton.getStyle().set("padding", "10px 24px");
-        viewCartButton.getStyle().set("font-size", "16px");
-        viewCartButton.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,.15)");
+        viewCartButton.addClassName("hero-pill");
 
-        // Botón Gestionar (solo ADMIN)
-        Button manageBtn = new Button("Gestionar productos", e -> UI.getCurrent().navigate("/products"));
-        manageBtn.getStyle().set("background-color", "#111827");
-        manageBtn.getStyle().set("color", "white");
-        manageBtn.getStyle().set("font-weight", "700");
-        manageBtn.getStyle().set("border-radius", "10px");
-        manageBtn.getStyle().set("padding", "10px 16px");
-        manageBtn.setVisible(hasRole("ADMIN"));
+        Div rightBox = new Div(viewCartButton);
+        rightBox.getStyle().set("justify-self", "end");
 
-        HorizontalLayout rightControls = new HorizontalLayout(manageBtn, viewCartButton);
-        rightControls.setSpacing(true);
-        rightControls.setAlignItems(FlexComponent.Alignment.CENTER);
+        Div leftSpacer = new Div();
 
-        HorizontalLayout titleRow = new HorizontalLayout(title, rightControls);
-        titleRow.setWidthFull();
-        titleRow.setAlignItems(FlexComponent.Alignment.CENTER);
-        titleRow.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        gridRow.add(leftSpacer, title, rightBox);
 
         Paragraph subtitle = new Paragraph("Descubre todos nuestros platos disponibles para ti");
-        subtitle.getStyle().set("margin", "8px 0 0");
-        subtitle.getStyle().set("color", "#222");
-        subtitle.getStyle().set("text-align", "center");
+        subtitle.addClassName("hero-subtitle");
 
-        hero.add(titleRow, subtitle);
+        hero.add(gridRow, subtitle);
 
-        // ===== GRID =====
+        // ===== GRID DE PRODUCTOS =====
         Div productGrid = new Div();
         productGrid.addClassName("product-grid");
         productGrid.getStyle().set("display", "flex");
@@ -108,6 +94,11 @@ public class CartaView extends VerticalLayout {
         for (Product p : products) productGrid.add(createProductCard(p));
 
         add(hero, productGrid);
+    }
+
+    private boolean isAuthenticated() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
     }
 
     private boolean hasRole(String role) {
@@ -145,7 +136,13 @@ public class CartaView extends VerticalLayout {
         price.getStyle().set("font-weight", "bold");
         price.getStyle().set("margin", "8px 0 10px");
 
-        Button addToCart = new Button("Agregar al Pedido", e -> cartService.addProduct(product));
+        Button addToCart = new Button("Agregar al Pedido", e -> {
+            if (!isAuthenticated()) {
+                UI.getCurrent().navigate("login");
+                return;
+            }
+            cartService.addProduct(product);
+        });
         addToCart.getStyle().set("background-color", "#ff7b00");
         addToCart.getStyle().set("color", "white");
         addToCart.getStyle().set("font-weight", "700");
@@ -165,7 +162,6 @@ public class CartaView extends VerticalLayout {
         return card;
     }
 
-    /** Dialog con descripción, alérgenos (placeholder) y precio. */
     private void openDetailsDialog(Product product) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle(product.getName());
@@ -175,8 +171,7 @@ public class CartaView extends VerticalLayout {
         content.setSpacing(false);
 
         Image bigImg = new Image("https://picsum.photos/seed/" + product.getId() + "/600/350", product.getName());
-        bigImg.getStyle().set("border-radius", "10px");
-        bigImg.getStyle().set("margin-bottom", "10px");
+        bigImg.getStyle().set("border-radius", "10px").set("margin-bottom", "10px");
 
         Paragraph desc = new Paragraph(
                 product.getDescription() != null && !product.getDescription().isBlank()
@@ -188,22 +183,34 @@ public class CartaView extends VerticalLayout {
                 currency.format(java.math.BigDecimal.valueOf(product.getPrice())));
         price.getStyle().set("font-weight", "700");
 
+        // === ALÉRGENOS: leer de BBDD y listar ===
         UnorderedList allergensList = new UnorderedList();
-        allergensList.add(new ListItem("Consulta al personal por posibles alérgenos."));
+        String allergens = product.getAllergens();  // requiere campo en entidad Product
+        if (allergens != null && !allergens.isBlank()) {
+            Arrays.stream(allergens.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .forEach(a -> allergensList.add(new ListItem(a)));
+        } else {
+            allergensList.add(new ListItem("— Sin información de alérgenos —"));
+        }
 
         content.add(bigImg, desc, price, new H3("Alérgenos"), allergensList);
         dialog.add(content);
 
         Button addButton = new Button("Agregar al Pedido", e -> {
+            if (!isAuthenticated()) {
+                UI.getCurrent().navigate("login");
+                return;
+            }
             cartService.addProduct(product);
             dialog.close();
         });
-        addButton.getStyle().set("background-color", "#ff7b00");
-        addButton.getStyle().set("color", "white");
-        addButton.getStyle().set("font-weight", "700");
-        addButton.getStyle().set("border-radius", "8px");
+        addButton.getStyle().set("background-color", "#ff7b00")
+                .set("color", "white")
+                .set("font-weight", "700")
+                .set("border-radius", "8px");
 
-        // ⛔️ Botón correcto: Cerrar (NO cerrar sesión)
         Button close = new Button("Cerrar", e -> dialog.close());
         dialog.getFooter().add(close, addButton);
 

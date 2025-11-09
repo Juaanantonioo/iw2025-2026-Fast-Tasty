@@ -53,28 +53,24 @@ public class CarritoView extends VerticalLayout {
     }
 
     private void createHeader() {
-        HorizontalLayout header = new HorizontalLayout();
-        header.addClassName("carrito-header");
-        header.setWidthFull();
-        header.setAlignItems(Alignment.CENTER);
-        header.setJustifyContentMode(JustifyContentMode.BETWEEN);
-
+        // Barra superior con “Volver”
+        HorizontalLayout topBar = new HorizontalLayout();
+        topBar.setWidthFull();
         Button backButton = new Button(new Icon(VaadinIcon.ARROW_LEFT));
         backButton.setText("Volver a la Carta");
         backButton.addClickListener(e -> getUI().ifPresent(ui -> ui.navigate("carta")));
+        topBar.add(backButton);
 
-        H1 title = new H1("Tu Carrito de Compra 🛒");
-        title.addClassName("carrito-title");
+        // Título centrado
+        H1 title = new H1("Tu Pedido");
+        title.addClassName("page-title");
+        title.getStyle().set("margin-bottom", "10px");
 
-        header.add(backButton, title);
-        header.expand(title);
-
-        add(header);
+        add(topBar, title);
     }
 
     private void createContent() {
         List<Product> cartItems = cartService.getCartItems();
-
         if (cartItems.isEmpty()) {
             showEmptyCart();
         } else {
@@ -100,38 +96,47 @@ public class CarritoView extends VerticalLayout {
     }
 
     private void showCartItems(List<Product> cartItems) {
-        Map<Product, Long> productCounts = cartItems.stream()
-                .collect(Collectors.groupingBy(p -> p, LinkedHashMap::new, Collectors.counting()));
+        // === Agrupar por ID de producto ===
+        Map<Long, List<Product>> byId = cartItems.stream()
+                .collect(Collectors.groupingBy(Product::getId, LinkedHashMap::new, Collectors.toList()));
 
-        VerticalLayout itemsLayout = new VerticalLayout();
-        itemsLayout.addClassName("items-layout");
-        itemsLayout.setPadding(false);
-        itemsLayout.setSpacing(true);
+        VerticalLayout itemsColumn = new VerticalLayout();
+        itemsColumn.addClassName("cart-items-column");
+        itemsColumn.setPadding(false);
+        itemsColumn.setSpacing(true);
+        itemsColumn.setWidth("86%"); // ancho cómodo en centro
+        itemsColumn.getStyle().set("margin", "0 auto");
 
         BigDecimal total = BigDecimal.ZERO;
 
-        for (Map.Entry<Product, Long> entry : productCounts.entrySet()) {
-            Product product = entry.getKey();
-            long quantity = entry.getValue();
+        for (Map.Entry<Long, List<Product>> entry : byId.entrySet()) {
+            List<Product> group = entry.getValue();
+            Product product = group.getFirst();
+            long quantity = group.size();
 
             BigDecimal subtotal = BigDecimal.valueOf(product.getPrice())
                     .multiply(BigDecimal.valueOf(quantity));
-
             total = total.add(subtotal);
 
-            HorizontalLayout itemLayout = createCartItemLayout(product, quantity, subtotal);
-            itemsLayout.add(itemLayout);
+            itemsColumn.add(createCartItemLayout(product, quantity, subtotal));
         }
 
+        // === RESUMEN CENTRADO ARRIBA ===
         Div summary = createOrderSummary(total);
+        summary.addClassName("order-summary-card");
+        summary.getStyle()
+                .set("margin", "8px auto 18px auto")
+                .set("width", "fit-content");
+
+        // Botones debajo
         HorizontalLayout actionButtons = createActionButtons();
 
-        add(itemsLayout, summary, actionButtons);
+        add(summary, itemsColumn, actionButtons);
     }
 
     private HorizontalLayout createCartItemLayout(Product product, long quantity, BigDecimal subtotal) {
         HorizontalLayout itemLayout = new HorizontalLayout();
-        itemLayout.addClassName("cart-item");
+        itemLayout.addClassName("cart-item-card");
         itemLayout.setWidthFull();
         itemLayout.setAlignItems(Alignment.CENTER);
         itemLayout.setJustifyContentMode(JustifyContentMode.BETWEEN);
@@ -156,7 +161,7 @@ public class CarritoView extends VerticalLayout {
         priceInfo.setText(currency.format(subtotal));
 
         Button removeButton = new Button("-", e -> {
-            cartService.removeProduct(product);
+            cartService.removeProduct(product);  // quita UNA unidad
             refreshView();
         });
 
@@ -179,12 +184,11 @@ public class CarritoView extends VerticalLayout {
         summary.addClassName("order-summary");
 
         H2 summaryTitle = new H2("Resumen del Pedido");
-
         Paragraph totalText = new Paragraph("Total: " + currency.format(total));
         totalText.addClassName("total-price");
-        totalText.getStyle().set("font-size", "1.6rem");
-        totalText.getStyle().set("font-weight", "800");
-        totalText.getStyle().set("margin-top", "6px");
+        totalText.getStyle().set("font-size", "1.6rem")
+                .set("font-weight", "800")
+                .set("margin-top", "6px");
 
         summary.add(summaryTitle, totalText);
         return summary;
@@ -193,6 +197,8 @@ public class CarritoView extends VerticalLayout {
     private HorizontalLayout createActionButtons() {
         HorizontalLayout buttons = new HorizontalLayout();
         buttons.addClassName("action-buttons");
+        buttons.setWidthFull();
+        buttons.setJustifyContentMode(JustifyContentMode.END);
 
         Button continueShopping = new Button("Seguir Comprando",
                 e -> getUI().ifPresent(ui -> ui.navigate("carta")));
@@ -214,8 +220,6 @@ public class CarritoView extends VerticalLayout {
         });
 
         buttons.add(continueShopping, clearCart, placeOrder);
-        buttons.setJustifyContentMode(JustifyContentMode.END);
-        buttons.setWidthFull();
         return buttons;
     }
 

@@ -1,79 +1,110 @@
 package com.fastfoodmanager.views;
 
+import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.service.OrderService;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
-import java.util.ArrayList;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
+
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 
 @PageTitle("Pedidos")
 @RolesAllowed({"OPERATOR","ADMIN"})
 @Route(value = "operator/orders", layout = MainLayout.class)
 public class OperatorOrdersView extends VerticalLayout {
 
+    private final OrderService orderService;
     private final Grid<Order> grid = new Grid<>(Order.class, false);
-    private final List<Order> orders = new ArrayList<>();
 
-    public OperatorOrdersView() {
-        add(new H1("📦 Pedidos asignados"));
+    private static final List<String> WORKFLOW = List.of(
+            "EN COCINA", "PREPARANDO", "LISTO", "EN REPARTO", "ENTREGADO"
+    );
 
-        grid.addColumn(Order::getId).setHeader("ID Pedido");
-        grid.addColumn(Order::getCliente).setHeader("Cliente");
-        grid.addColumn(Order::getEstado).setHeader("Estado");
+    private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-        grid.addComponentColumn(order -> {
-            Button siguiente = new Button("Cambiar estado", e -> avanzarEstado(order));
-            return siguiente;
-        }).setHeader("Acción");
+    public OperatorOrdersView(OrderService orderService) {
+        this.orderService = orderService;
 
-        grid.setItems(orders);
-        add(grid);
+        setSizeFull();
+        setSpacing(true);
+        setPadding(true);
 
-        cargarPedidos();
+        var title = new H1("📦 Pedidos asignados");
+        var refreshBtn = new Button("Refrescar", e -> refresh());
+
+        // Autorefresco cada 5s
+        UI.getCurrent().setPollInterval(5000);
+        UI.getCurrent().addPollListener(e -> refresh());
+
+        var top = new HorizontalLayout(title, refreshBtn);
+        top.setWidthFull();
+        top.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        top.setAlignItems(Alignment.CENTER);
+
+        // ----- Columnas -----
+        grid.addColumn(Order::getId).setHeader("ID").setAutoWidth(true).setSortable(true);
+        grid.addColumn(o -> o.getCustomer() != null ? o.getCustomer().getUsername() : "-")
+                .setHeader("Cliente").setAutoWidth(true);
+        grid.addColumn(o -> String.format("€ %.2f", o.getTotal() == null ? 0.0 : o.getTotal()))
+                .setHeader("Total").setAutoWidth(true);
+        grid.addColumn(o -> o.getStatus() == null ? "-" : o.getStatus())
+                .setHeader("Estado").setAutoWidth(true).setSortable(true);
+        grid.addColumn(o -> o.getCreatedAt() == null ? "-" : o.getCreatedAt().format(fmt))
+                .setHeader("Creado").setAutoWidth(true).setSortable(true);
+
+        // Acción: siguiente estado
+        grid.addComponentColumn(o -> {
+            String next = nextStatus(o.getStatus());
+            Button b = new Button(next == null ? "—" : ("A " + next), e -> {
+                if (next != null) {
+                    orderService.updateStatus(o.getId(), next);
+                    Notification.show("Pedido " + o.getId() + " → " + next, 2000, Notification.Position.MIDDLE);
+                    refresh();
+                }
+            });
+            b.setEnabled(next != null);
+            return b;
+        }).setHeader("Avanzar").setAutoWidth(true);
+
+        add(top, grid);
+        setFlexGrow(1, grid);
+
+        refresh();
     }
 
-    private void cargarPedidos() {
-        // 🔧 Temporal: en el futuro se traerán de la base de datos
-        orders.add(new Order(1L, "Carlos", "Enviado a cocina"));
-        orders.add(new Order(2L, "Lucía", "Preparando"));
-        orders.add(new Order(3L, "Marta", "Listo"));
-        grid.getDataProvider().refreshAll();
+    /** Calcula el siguiente estado del flujo predefinido. */
+    private String nextStatus(String current) {
+        if (current == null) return WORKFLOW.get(0);
+        int idx = WORKFLOW.indexOf(current);
+        if (idx < 0 || idx == WORKFLOW.size() - 1) return null; // ya en último
+        return WORKFLOW.get(idx + 1);
     }
 
-    private void avanzarEstado(Order o) {
-        String nuevoEstado;
-        switch (o.getEstado()) {
-            case "Enviado a cocina" -> nuevoEstado = "Preparando";
-            case "Preparando" -> nuevoEstado = "Listo";
-            case "Listo" -> nuevoEstado = "En reparto";
-            default -> nuevoEstado = "Completado";
+    /** Carga pedidos de BD (pendientes/no entregados) y los pinta. */
+    private void refresh() {
+        List<Order> data;
+        try {
+            // preferente: sólo los no ENTREGADO
+            data = orderService.findPending();
+        } catch (Throwable ignored) {
+            // fallback si tu servicio aún no tiene findPending()
+            data = orderService.findAll().stream()
+                    .filter(o -> !Objects.equals(o.getStatus(), "ENTREGADO"))
+                    .toList();
         }
-        o.setEstado(nuevoEstado);
+        grid.setItems(data);
         grid.getDataProvider().refreshAll();
-        Notification.show("Pedido " + o.getId() + " → " + nuevoEstado);
-    }
-
-    // Clase interna temporal (simula pedidos)
-    public static class Order {
-        private Long id;
-        private String cliente;
-        private String estado;
-
-        public Order(Long id, String cliente, String estado) {
-            this.id = id;
-            this.cliente = cliente;
-            this.estado = estado;
-        }
-
-        public Long getId() { return id; }
-        public String getCliente() { return cliente; }
-        public String getEstado() { return estado; }
-        public void setEstado(String estado) { this.estado = estado; }
     }
 }

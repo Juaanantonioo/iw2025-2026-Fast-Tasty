@@ -110,6 +110,14 @@ public class UserService {
         return false;
     }
 
+    // ✔ Obtener username actual (evita devolver "anonymousUser")
+    public String getCurrentUsername() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        if (a == null || !a.isAuthenticated()) return null;
+        String name = a.getName();
+        return "anonymousUser".equals(name) ? null : name;
+    }
+
     // ✔ Cerrar sesión y limpiar contexto
     public void logout() {
         SecurityContextHolder.clearContext();

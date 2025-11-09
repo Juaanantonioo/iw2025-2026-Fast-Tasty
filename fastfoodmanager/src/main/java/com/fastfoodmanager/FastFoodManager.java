@@ -1,16 +1,19 @@
 package com.fastfoodmanager;
 
-import com.fastfoodmanager.domain.Order;
-import com.fastfoodmanager.domain.Order.Status;
 import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.domain.OrderItem;
+import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.domain.User.Role;
-import com.fastfoodmanager.repository.ProductRepository;
 import com.fastfoodmanager.service.OrderService;
+import com.fastfoodmanager.service.ProductService;
 import com.fastfoodmanager.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+
+import java.util.List;
 
 @SpringBootApplication
 public class FastFoodManager {
@@ -20,47 +23,73 @@ public class FastFoodManager {
     }
 
     @Bean
-    CommandLineRunner seed(
-            UserService userService,
-            ProductRepository productRepo,
-            OrderService orderService
-    ) {
+    CommandLineRunner seed(UserService userService,
+                           ProductService productService,
+                           OrderService orderService) {
         return args -> {
-            // 👤 Usuarios base
+            // ───────────────────────
+            // Usuarios base
+            // ───────────────────────
             if (!userService.exists("admin")) {
-                userService.registerUser("admin", "1234", Role.ADMIN);
+                userService.registerUser("admin", "admin", Role.ADMIN); // admin/admin
             }
             if (!userService.exists("operario1")) {
                 userService.registerUser("operario1", "1234", Role.OPERATOR);
             }
-
-            // 🍔 Productos con stock
-            if (productRepo.count() == 0) {
-                Product p1 = new Product();
-                p1.setName("Hamburguesa Clásica");
-                p1.setDescription("Ternera + queso + lechuga");
-                p1.setPrice(6.50);
-                p1.setAllergens("GLUTEN, LÁCTEOS");
-                p1.setStock(15);
-                p1.setActive(true);
-
-                Product p2 = new Product();
-                p2.setName("Patatas Deluxe");
-                p2.setDescription("Gajo crujiente");
-                p2.setPrice(3.00);
-                p2.setAllergens("-");
-                p2.setStock(30);
-                p2.setActive(true);
-
-                productRepo.save(p1);
-                productRepo.save(p2);
+            if (!userService.exists("cliente1")) {
+                userService.registerCustomer("cliente1", "1234"); // rol USER
             }
 
-            // 📦 Pedidos de prueba
+            // ───────────────────────
+            // Productos de ejemplo
+            // ───────────────────────
+            if (productService.findAll().isEmpty()) {
+                Product p1 = new Product();
+                p1.setName("Hamburguesa clásica");
+                p1.setDescription("Ternera, lechuga, tomate, salsa");
+                p1.setPrice(6.50);
+                p1.setActive(true);
+                p1.setAllergens("gluten");
+                p1.setStock(25);
+                productService.save(p1);
+
+                Product p2 = new Product();
+                p2.setName("Patatas grande");
+                p2.setDescription("Ración grande de patatas");
+                p2.setPrice(2.90);
+                p2.setActive(true);
+                p2.setAllergens("");
+                p2.setStock(40);
+                productService.save(p2);
+            }
+
+            // ───────────────────────
+            // Pedidos de ejemplo (si no hay)
+            // ───────────────────────
             if (orderService.count() == 0) {
-                orderService.save(new Order("Juan Pérez", 12.50, Status.ENVIADO_A_COCINA, "operario1"));
-                orderService.save(new Order("Ana López", 9.00, Status.PREPARANDO, "operario1"));
-                System.out.println("✅ Pedidos de prueba creados para operario1");
+                User cliente = userService.findByUsername("cliente1").orElse(null);
+                List<Product> productos = productService.findAll();
+
+                if (cliente != null && productos.size() >= 2) {
+                    // Pedido 1
+                    OrderItem i1 = new OrderItem(productos.get(0), 2);
+                    OrderItem i2 = new OrderItem(productos.get(1), 1);
+                    Order o1 = orderService.createOrder(cliente, List.of(i1, i2));
+                    o1.setAssignedTo("operario1");                  // asignado al operario
+                    orderService.updateStatus(o1.getId(), "EN COCINA");
+                    orderService.save(o1);                           // guarda la asignación
+
+                    // Pedido 2
+                    OrderItem i3 = new OrderItem(productos.get(0), 1);
+                    Order o2 = orderService.createOrder(cliente, List.of(i3));
+                    o2.setAssignedTo("operario1");                  // asignado al operario
+                    orderService.updateStatus(o2.getId(), "PREPARANDO");
+                    orderService.save(o2);                           // guarda la asignación
+                }
+
+                System.out.println("✅ Pedidos de ejemplo creados (asignados a operario1)");
+            } else {
+                System.out.println("ℹ️ Usuarios/productos/pedidos ya presentes");
             }
         };
     }

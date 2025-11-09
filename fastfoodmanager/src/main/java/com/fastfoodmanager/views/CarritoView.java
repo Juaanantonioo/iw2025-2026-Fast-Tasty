@@ -1,12 +1,21 @@
 package com.fastfoodmanager.views;
 
+import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.service.CartService;
+import com.fastfoodmanager.service.OrderService;
+import com.fastfoodmanager.service.UserService;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -32,10 +41,18 @@ import java.util.stream.Collectors;
 public class CarritoView extends VerticalLayout {
 
     private final CartService cartService;
+    private final OrderService orderService;
+    private final UserService userService;
+
     private final NumberFormat currency;
 
-    public CarritoView(CartService cartService) {
+    public CarritoView(CartService cartService,
+                       OrderService orderService,
+                       UserService userService) {
         this.cartService = cartService;
+        this.orderService = orderService;
+        this.userService = userService;
+
         this.currency = NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
 
         addClassName("carrito-view");
@@ -207,15 +224,7 @@ public class CarritoView extends VerticalLayout {
             refreshView();
         });
 
-        Button placeOrder = new Button("Realizar Pedido", e -> {
-            if (cartService.getItemCount() > 0) {
-                Notification.show("¡Pedido realizado con éxito!", 3000, Notification.Position.MIDDLE);
-                cartService.clearCart();
-                getUI().ifPresent(ui -> ui.navigate("carta"));
-            } else {
-                Notification.show("El carrito está vacío", 2000, Notification.Position.BOTTOM_END);
-            }
-        });
+        Button placeOrder = new Button("Realizar Pedido", e -> abrirSimuladorPaypal());
 
         buttons.add(continueShopping, clearCart, placeOrder);
         return buttons;
@@ -223,5 +232,92 @@ public class CarritoView extends VerticalLayout {
 
     private void refreshView() {
         createView();
+    }
+
+    // ===================== Pago simulado + creación de pedido =====================
+
+    private void abrirSimuladorPaypal() {
+        if (cartService.getItemCount() <= 0) {
+            Notification.show("El carrito está vacío", 2000, Notification.Position.BOTTOM_END);
+            return;
+        }
+
+        BigDecimal total = calcularTotalActual();
+
+        Dialog dlg = new Dialog();
+        dlg.setHeaderTitle("Simulador PayPal");
+
+        VerticalLayout content = new VerticalLayout(
+                new H3("Total a pagar: " + currency.format(total)),
+                new Paragraph("Esto es un flujo de pago simulado para el proyecto (sin cobro real).")
+        );
+        content.setSpacing(false);
+        content.setPadding(false);
+
+        Button cancelar = new Button("Cancelar", e -> dlg.close());
+        Button confirmar = new Button("Pagar ahora", e -> {
+            dlg.close();
+            procesarPagoExitoso();
+        });
+
+        HorizontalLayout footer = new HorizontalLayout(cancelar, confirmar);
+        footer.setWidthFull();
+        footer.setJustifyContentMode(JustifyContentMode.BETWEEN);
+
+        dlg.add(content);
+        dlg.getFooter().add(footer);
+        dlg.open();
+    }
+
+    private BigDecimal calcularTotalActual() {
+        return cartService.getCartItems().stream()
+                .collect(Collectors.groupingBy(Product::getId))
+                .entrySet()
+                .stream()
+                .map(e -> {
+                    Product p = e.getValue().getFirst();
+                    int qty = e.getValue().size();
+                    return BigDecimal.valueOf(p.getPrice()).multiply(BigDecimal.valueOf(qty));
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private void procesarPagoExitoso() {
+        // 1) Usuario actual
+        String username = userService.getCurrentUsername();
+        if (username == null) {
+            Notification.show("Debes iniciar sesión para comprar");
+            getUI().ifPresent(ui -> ui.navigate("login"));
+            return;
+        }
+        User cliente = userService.findByUsername(username).orElse(null);
+        if (cliente == null) {
+            Notification.show("Usuario no encontrado");
+            return;
+        }
+
+        // 2) Mapear líneas del carrito a OrderItem (agrupando por producto)
+        Map<Product, Integer> qtyByProduct = cartService.getCartItems().stream()
+                .collect(Collectors.toMap(
+                        p -> p,
+                        p -> 1,
+                        Integer::sum,
+                        LinkedHashMap::new
+                ));
+
+        List<OrderItem> items = qtyByProduct.entrySet().stream()
+                .map(e -> new OrderItem(e.getKey(), e.getValue()))
+                .collect(Collectors.toList());
+
+        // 3) Crear pedido + estado inicial
+        Order order = orderService.createOrder(cliente, items);
+        orderService.updateStatus(order.getId(), "EN COCINA");
+
+        // 4) Vaciar carrito y notificar
+        cartService.clearCart();
+        Notification.show("¡Pedido realizado con éxito!", 3000, Notification.Position.TOP_CENTER);
+
+        // 5) Volver a la carta (o a “mis pedidos” si luego haces esa vista)
+        UI.getCurrent().navigate("carta");
     }
 }

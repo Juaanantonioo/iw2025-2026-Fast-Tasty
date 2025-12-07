@@ -13,6 +13,7 @@ public class Product {
 
     private String name;
     private String description;
+    private String imageUrl;
     private Double price;
     private boolean active = true;
 
@@ -61,4 +62,12 @@ public class Product {
 
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }

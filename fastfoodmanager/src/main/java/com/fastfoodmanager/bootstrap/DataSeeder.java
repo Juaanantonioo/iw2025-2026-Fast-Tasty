@@ -52,6 +52,7 @@ public class DataSeeder {
                 Product p1 = new Product();
                 p1.setName("Hamburguesa clásica");
                 p1.setDescription("Ternera, lechuga, tomate, salsa");
+                p1.setImageUrl("/images/clasica.jpg");
                 p1.setPrice(6.50);
                 p1.setActive(true);
                 p1.setType(hamburguesa);
@@ -62,6 +63,7 @@ public class DataSeeder {
                 Product p2 = new Product();
                 p2.setName("Patatas grande");
                 p2.setDescription("Ración grande de patatas");
+                p2.setImageUrl("/images/patatas_con_queso_y_bacon.jpg");
                 p2.setPrice(2.90);
                 p2.setActive(true);
                 p2.setType(sides);

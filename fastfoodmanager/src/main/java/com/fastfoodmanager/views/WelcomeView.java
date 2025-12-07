@@ -131,6 +131,25 @@ public class WelcomeView extends VerticalLayout {
         nombre.setRequired(true);
         TextField telefono = new TextField("Teléfono");
         telefono.setRequired(true);
+        telefono.setMaxLength(9);
+        telefono.setMinLength(9);
+        telefono.setErrorMessage("Debe tener exactamente 9 dígitos.");
+
+// --- Validación en vivo (solo números + máximo 9) ---
+        telefono.addValueChangeListener(e -> {
+            String value = telefono.getValue();
+
+            // Eliminar todo lo que no sean dígitos
+            if (!value.matches("\\d*")) {
+                telefono.setValue(value.replaceAll("\\D", ""));
+            }
+
+            // Limitar a 9 caracteres
+            if (telefono.getValue().length() > 9) {
+                telefono.setValue(telefono.getValue().substring(0, 9));
+            }
+        });
+
         EmailField email = new EmailField("Email");
         email.setRequiredIndicatorVisible(true);
 
@@ -162,12 +181,28 @@ public class WelcomeView extends VerticalLayout {
         );
 
         Button reservar = new Button("Confirmar reserva", e -> {
-            if (nombre.isEmpty() || telefono.isEmpty() || email.isEmpty()
-                    || fecha.isEmpty() || hora.isEmpty() || personas.isEmpty()) {
-                Notification.show("Rellena todos los campos obligatorios.", 3000, Notification.Position.TOP_CENTER);
+
+            // --- Validación estricta al confirmar ---
+            if (!telefono.getValue().matches("\\d{9}")) {
+                Notification.show(
+                        "El teléfono debe tener exactamente 9 dígitos numéricos.",
+                        3000,
+                        Notification.Position.TOP_CENTER
+                );
                 return;
             }
-            Notification.show("Reserva enviada. Te confirmaremos por email o WhatsApp.", 3500, Notification.Position.TOP_CENTER);
+
+            if (nombre.isEmpty() || telefono.isEmpty() || email.isEmpty()
+                    || fecha.isEmpty() || hora.isEmpty() || personas.isEmpty()) {
+                Notification.show("Rellena todos los campos obligatorios.",
+                        3000, Notification.Position.TOP_CENTER);
+                return;
+            }
+
+            Notification.show(
+                    "Reserva enviada. Te confirmaremos por email o WhatsApp.",
+                    3500, Notification.Position.TOP_CENTER
+            );
         });
         reservar.addClassName("primary-btn");
 

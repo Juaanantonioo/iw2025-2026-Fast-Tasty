@@ -18,6 +18,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import com.vaadin.flow.component.select.Select;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -128,15 +130,16 @@ public class CartaView extends VerticalLayout {
         card.getStyle().set("max-width", "260px");
         card.getStyle().set("background-color", "white");
 
-        Image img = new Image("https://picsum.photos/seed/" + product.getId() + "/300/200", product.getName());
-        img.addClassName("product-image");
-        img.getStyle().set("border-radius", "8px");
-
         H1 name = new H1(product.getName());
         name.addClassName("product-name");
         name.getStyle().set("color", "#ff7b00");
         name.getStyle().set("font-size", "1.35rem");
         name.getStyle().set("margin", "8px 0 0");
+
+        Image img = new Image(product.getImageUrl(), product.getName());
+        img.setWidth("180px");
+        img.getStyle().set("border-radius", "12px");
+        img.getStyle().set("margin", "0 auto");
 
         Paragraph price = new Paragraph(currency.format(java.math.BigDecimal.valueOf(product.getPrice())));
         price.addClassName("product-price");
@@ -148,7 +151,11 @@ public class CartaView extends VerticalLayout {
                 UI.getCurrent().navigate("login");
                 return;
             }
+
             cartService.addProduct(product);
+
+            Notification notification = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
+            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
         addToCart.getStyle().set("background-color", "#ff7b00");
         addToCart.getStyle().set("color", "white");
@@ -180,8 +187,13 @@ public class CartaView extends VerticalLayout {
         content.setPadding(false);
         content.setSpacing(false);
 
-        Image bigImg = new Image("https://picsum.photos/seed/" + product.getId() + "/600/350", product.getName());
-        bigImg.getStyle().set("border-radius", "10px").set("margin-bottom", "10px");
+        Image bigImg = new Image(product.getImageUrl(), product.getName());
+        bigImg.setWidth("420px");
+        bigImg.getStyle()
+                .set("border-radius", "16px")
+                .set("margin", "0 auto 20px auto")
+                .set("display", "block")
+                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
 
         Paragraph desc = new Paragraph(
                 product.getDescription() != null && !product.getDescription().isBlank()
@@ -207,13 +219,35 @@ public class CartaView extends VerticalLayout {
         content.add(bigImg, desc, price, new H3("Alérgenos"), allergensList);
         dialog.add(content);
 
+        // ✔ Mostrar notificación tras cerrarse el diálogo
+        dialog.addOpenedChangeListener(ev -> {
+            boolean opened = ev.isOpened();
+            boolean pending = dialog.getElement().getProperty("showAddedNotification", false);
+
+            if (!opened && pending) {
+                dialog.getElement().setProperty("showAddedNotification", false);
+
+                Notification notif = Notification.show(
+                        "Añadido al pedido",
+                        2000,
+                        Notification.Position.MIDDLE
+                );
+                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            }
+        });
+
         Button addButton = new Button("Agregar al Pedido", e -> {
             if (!isAuthenticated()) {
                 UI.getCurrent().navigate("login");
                 return;
             }
+
             cartService.addProduct(product);
-            dialog.close();
+
+            // ✔ indicar que debe mostrarse la notificación
+            dialog.getElement().setProperty("showAddedNotification", true);
+
+            dialog.close(); // el mensaje aparecerá DESPUÉS
         });
         addButton.getStyle().set("background-color", "#ff7b00")
                 .set("color", "white")

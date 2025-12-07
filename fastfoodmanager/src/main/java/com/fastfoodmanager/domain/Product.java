@@ -1,6 +1,7 @@
 package com.fastfoodmanager.domain;
 
 import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 @Table(name = "product")
@@ -10,15 +11,29 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Atributos del producto
     private String name;
     private String description;
     private Double price;
     private boolean active = true;
-    private String allergens;
+
+    // Nueva relación con FoodType
+    @ManyToOne
+    @JoinColumn(name = "food_type_id")
+    private FoodType type;
+
+    // Nueva relación con Allergen
+    @ManyToMany
+    @JoinTable(
+            name = "product_allergen",
+            joinColumns = @JoinColumn(name = "product_id"),
+            inverseJoinColumns = @JoinColumn(name = "allergen_id")
+    )
+    private List<Allergen> allergens;
 
     @Column(nullable = false)
-    private int stock = 0; // <-- NUEVO: cantidad disponible en inventario
+    private int stock = 0;
+
+    public Product() {}
 
     // ---- Getters y Setters ----
     public Long getId() { return id; }
@@ -36,9 +51,14 @@ public class Product {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
-    public String getAllergens() { return allergens; }
-    public void setAllergens(String allergens) { this.allergens = allergens; }
+    // Nuevo getter/setter FoodType
+    public FoodType getType() { return type; }
+    public void setType(FoodType type) { this.type = type; }
 
-    public int getStock() { return stock; }       // <-- NUEVO
-    public void setStock(int stock) { this.stock = stock; } // <-- NUEVO
+    // Nuevo getter/setter Allergen (lista)
+    public List<Allergen> getAllergens() { return allergens; }
+    public void setAllergens(List<Allergen> allergens) { this.allergens = allergens; }
+
+    public int getStock() { return stock; }
+    public void setStock(int stock) { this.stock = stock; }
 }

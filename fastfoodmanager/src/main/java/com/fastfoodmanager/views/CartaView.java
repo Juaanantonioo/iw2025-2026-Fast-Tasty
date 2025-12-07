@@ -1,6 +1,8 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.FoodType;
+import com.fastfoodmanager.domain.Allergen;
 import com.fastfoodmanager.service.MenuService;
 import com.fastfoodmanager.service.CartService;
 import com.vaadin.flow.component.UI;
@@ -8,8 +10,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.*;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -17,9 +17,9 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import com.vaadin.flow.component.select.Select;
 
 import java.text.NumberFormat;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -32,6 +32,8 @@ public class CartaView extends VerticalLayout {
     private final MenuService menuService;
     private final CartService cartService;
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
+
+    private Div productGrid; // <- ahora es atributo de clase
 
     public CartaView(MenuService menuService, CartService cartService) {
         this.menuService = menuService;
@@ -72,9 +74,14 @@ public class CartaView extends VerticalLayout {
         Div rightBox = new Div(viewCartButton);
         rightBox.getStyle().set("justify-self", "end");
 
-        Div leftSpacer = new Div();
+        Button filterButton = new Button("🔍 Filtrar");
+        filterButton.addClassName("hero-pill");
+        filterButton.addClickListener(e -> openFilterMenu());
 
-        gridRow.add(leftSpacer, title, rightBox);
+        Div leftBox = new Div(filterButton);
+        leftBox.getStyle().set("justify-self", "start");
+
+        gridRow.add(leftBox, title, rightBox);
 
         Paragraph subtitle = new Paragraph("Descubre todos nuestros platos disponibles para ti");
         subtitle.addClassName("hero-subtitle");
@@ -82,7 +89,7 @@ public class CartaView extends VerticalLayout {
         hero.add(gridRow, subtitle);
 
         // GRID Productos
-        Div productGrid = new Div();
+        productGrid = new Div();
         productGrid.addClassName("product-grid");
         productGrid.getStyle().set("display", "flex");
         productGrid.getStyle().set("flex-wrap", "wrap");
@@ -150,7 +157,10 @@ public class CartaView extends VerticalLayout {
         addToCart.getStyle().set("width", "100%");
         addToCart.getStyle().set("margin-top", "8px");
 
-        Button detailsBtn = new Button("Ver detalles", e -> openDetailsDialog(product));
+        Button detailsBtn = new Button("Ver detalles", e -> {
+            System.out.println("Detalles de: " + product.getName());
+            openDetailsDialog(product);
+        });
         detailsBtn.getStyle().set("background-color", "#ff7b00");
         detailsBtn.getStyle().set("color", "white");
         detailsBtn.getStyle().set("font-weight", "600");
@@ -185,12 +195,11 @@ public class CartaView extends VerticalLayout {
 
         // Listar Alérgenos
         UnorderedList allergensList = new UnorderedList();
-        String allergens = product.getAllergens();
-        if (allergens != null && !allergens.isBlank()) {
-            Arrays.stream(allergens.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .forEach(a -> allergensList.add(new ListItem(a)));
+
+        if (product.getAllergens() != null && !product.getAllergens().isEmpty()) {
+            product.getAllergens().forEach(a ->
+                    allergensList.add(new ListItem(a.getName()))
+            );
         } else {
             allergensList.add(new ListItem("— Sin información de alérgenos —"));
         }
@@ -217,4 +226,70 @@ public class CartaView extends VerticalLayout {
         dialog.setWidth("720px");
         dialog.open();
     }
+
+    private void openFilterMenu() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Filtrar productos");
+
+        VerticalLayout content = new VerticalLayout();
+
+        // SELECT Tipo
+        Select<FoodType> typeSelect = new Select<>();
+        typeSelect.setLabel("Tipo");
+        typeSelect.setItemLabelGenerator(FoodType::getName);
+        List<FoodType> types = menuService.findAllFoodTypes();
+        typeSelect.setItems(types != null ? types : List.of());
+
+        // SELECT Alérgenos
+        Select<Allergen> allergenSelect = new Select<>();
+        allergenSelect.setLabel("Alérgenos");
+        allergenSelect.setItemLabelGenerator(a -> "Sin " + a.getName());
+        List<Allergen> allergens = menuService.findAllAllergens();
+        allergenSelect.setItems(allergens != null ? allergens : List.of());
+
+        Button apply = new Button("Aplicar filtros", e -> {
+            // IDs de alérgenos a excluir
+            List<Long> allergenIds = allergenSelect.getValue() != null
+                    ? List.of(allergenSelect.getValue().getId())
+                    : List.of();
+
+            // Traer productos activos que NO tengan los alérgenos seleccionados
+            List<Product> products = menuService.findActiveWithoutAllergens(allergenIds);
+
+            // Filtrar también por tipo de comida si se seleccionó
+            FoodType selectedType = typeSelect.getValue();
+            if (selectedType != null) {
+                products = products.stream()
+                        .filter(p -> p.getType() != null && p.getType().getId().equals(selectedType.getId()))
+                        .toList();
+            }
+
+            // Limpiar grid y mostrar productos filtrados
+            productGrid.removeAll();
+            products.forEach(p -> productGrid.add(createProductCard(p)));
+
+            dialog.close();
+        });
+
+        Button close = new Button("Cerrar", e -> dialog.close());
+
+        content.add(typeSelect, allergenSelect);
+        dialog.add(content);
+        dialog.getFooter().add(close, apply);
+        dialog.open();
+    }
+
+    private void applyFilters(FoodType type, Allergen allergen) {
+        productGrid.removeAll();
+
+        menuService.findActiveProducts().stream()
+                // Filtrar por tipo
+                .filter(p -> type == null || (p.getType() != null && p.getType().getId().equals(type.getId())))
+                // Filtrar por alérgeno: comparar por nombre
+                .filter(p -> allergen == null ||
+                        (p.getAllergens() != null && p.getAllergens().stream()
+                                .anyMatch(a -> a.getName().equalsIgnoreCase(allergen.getName()))))
+                .forEach(p -> productGrid.add(createProductCard(p)));
+    }
+
 }

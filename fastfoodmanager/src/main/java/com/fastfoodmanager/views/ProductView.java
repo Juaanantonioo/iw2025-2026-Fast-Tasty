@@ -1,12 +1,13 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.Allergen;
+import com.fastfoodmanager.repository.AllergenRepository;
 import com.fastfoodmanager.service.ProductService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
-import com.vaadin.flow.component.html.Anchor;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.notification.Notification;
@@ -21,11 +22,16 @@ import com.vaadin.flow.data.validator.DoubleRangeValidator;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Route(value = "products", layout = MainLayout.class)
 @RolesAllowed("ADMIN")
 public class ProductView extends VerticalLayout {
 
     private final ProductService service;
+    private final AllergenRepository allergenRepo;
 
     // Formulario
     private final TextField name = new TextField("Nombre");
@@ -45,8 +51,9 @@ public class ProductView extends VerticalLayout {
     private final Binder<Product> binder = new Binder<>(Product.class);
     private Product current = new Product();
 
-    public ProductView(ProductService service) {
+    public ProductView(ProductService service, AllergenRepository allergenRepo) {
         this.service = service;
+        this.allergenRepo = allergenRepo;
 
         setSizeFull();
         setPadding(true);
@@ -55,11 +62,7 @@ public class ProductView extends VerticalLayout {
 
         // Cabecera
         var header = new H1("Gestión de productos");
-        header.getStyle()
-                .set("margin", "0")
-                .set("font-weight", "800")
-                .set("color", "#1f2937");
-
+        header.getStyle().set("margin", "0").set("font-weight", "800").set("color", "#1f2937");
 
         // Botones
         stylePrimary(save);
@@ -110,7 +113,11 @@ public class ProductView extends VerticalLayout {
         grid.addColumn(Product::getDescription).setHeader("Descripción").setAutoWidth(true)
                 .setFlexGrow(2);
         grid.addColumn(p -> formatMoney(p.getPrice())).setHeader("Precio").setAutoWidth(true);
-        grid.addColumn(p -> safe(p.getAllergens())).setHeader("Alérgenos").setAutoWidth(true);
+        grid.addColumn(p -> p.getAllergens() == null ? "" :
+                p.getAllergens().stream()
+                        .map(Allergen::getName)
+                        .collect(Collectors.joining(", "))
+        ).setHeader("Alérgenos").setAutoWidth(true);
         grid.addColumn(Product::isActive).setHeader("Activo").setAutoWidth(true);
 
         grid.addThemeVariants(
@@ -141,6 +148,16 @@ public class ProductView extends VerticalLayout {
                 .bind(Product::getDescription, Product::setDescription);
 
         binder.forField(allergens)
+                .withConverter(
+                        s -> Arrays.stream(s.split(","))
+                                .map(String::trim)
+                                .filter(str -> !str.isEmpty())
+                                .map(str -> allergenRepo.findByName(str)
+                                        .orElseGet(() -> allergenRepo.save(new Allergen(str))))
+                                .collect(Collectors.toList()),
+                        list -> list == null ? "" :
+                                list.stream().map(Allergen::getName).collect(Collectors.joining(", "))
+                )
                 .bind(Product::getAllergens, Product::setAllergens);
 
         binder.forField(price).asRequired("El precio es obligatorio")
@@ -196,26 +213,21 @@ public class ProductView extends VerticalLayout {
         return String.format("%.2f €", value);
     }
 
-    private static String safe(String s) { return s == null ? "" : s; }
-
     private static void stylePrimary(Button b) {
-        b.getStyle()
-                .set("background", "#ff6a1a")
+        b.getStyle().set("background", "#ff6a1a")
                 .set("color", "white")
                 .set("font-weight", "700")
                 .set("border-radius", "10px");
     }
 
     private static void styleTertiary(Button b) {
-        b.getStyle()
-                .set("background", "#f3f4f6")
+        b.getStyle().set("background", "#f3f4f6")
                 .set("color", "#111827")
                 .set("border-radius", "10px");
     }
 
     private static void styleError(Button b) {
-        b.getStyle()
-                .set("background", "#fee2e2")
+        b.getStyle().set("background", "#fee2e2")
                 .set("color", "#991b1b")
                 .set("border-radius", "10px");
     }

@@ -1,5 +1,7 @@
 package com.fastfoodmanager.views;
 
+import com.fastfoodmanager.services.BookingService;
+import com.fastfoodmanager.models.Booking;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -31,7 +33,12 @@ import java.util.Map;
 @AnonymousAllowed
 public class WelcomeView extends VerticalLayout {
 
-    public WelcomeView() {
+    private final BookingService bookingService;
+
+    // Constructor con inyección de dependencias
+    public WelcomeView(BookingService bookingService) {
+        this.bookingService = bookingService;
+
         addClassName("welcome-view");
         setSizeFull();
         setSpacing(false);
@@ -161,13 +168,43 @@ public class WelcomeView extends VerticalLayout {
                 new FormLayout.ResponsiveStep("1024px", 3)
         );
 
-        Button reservar = new Button("Confirmar reserva", e -> {
+        Button reservar = new Button("Confirmar reserva");
+        reservar.addClickListener(e -> {
             if (nombre.isEmpty() || telefono.isEmpty() || email.isEmpty()
                     || fecha.isEmpty() || hora.isEmpty() || personas.isEmpty()) {
                 Notification.show("Rellena todos los campos obligatorios.", 3000, Notification.Position.TOP_CENTER);
                 return;
             }
-            Notification.show("Reserva enviada. Te confirmaremos por email o WhatsApp.", 3500, Notification.Position.TOP_CENTER);
+
+            try {
+                // Crear objeto Reserva
+                Booking reserva = new Booking(
+                        nombre.getValue(),
+                        telefono.getValue(),
+                        email.getValue(),
+                        fecha.getValue(),
+                        hora.getValue(),
+                        personas.getValue(),
+                        comentarios.getValue() != null ? comentarios.getValue() : ""
+                );
+
+                // Usar el servicio inyectado
+                bookingService.procesarReserva(reserva);
+
+                Notification.show("Reserva enviada. Te confirmaremos por email.", 3500, Notification.Position.TOP_CENTER);
+
+                // Limpiar formulario
+                nombre.clear();
+                telefono.clear();
+                email.clear();
+                fecha.clear();
+                hora.clear();
+                personas.setValue(2);
+                comentarios.clear();
+
+            } catch (Exception ex) {
+                Notification.show("Error al procesar la reserva. Inténtalo de nuevo.", 3000, Notification.Position.TOP_CENTER);
+            }
         });
         reservar.addClassName("primary-btn");
 

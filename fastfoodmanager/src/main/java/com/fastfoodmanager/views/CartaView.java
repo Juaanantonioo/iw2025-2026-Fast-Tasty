@@ -136,7 +136,12 @@ public class CartaView extends VerticalLayout {
         name.getStyle().set("font-size", "1.35rem");
         name.getStyle().set("margin", "8px 0 0");
 
-        Image img = new Image(product.getImageUrl(), product.getName());
+        // Validación de la URL de la imagen
+        String imageUrl = product.getImageUrl();
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            imageUrl = "path/to/default/image.jpg"; // Imagen predeterminada
+        }
+        Image img = new Image(imageUrl, product.getName());
         img.setWidth("180px");
         img.getStyle().set("border-radius", "12px");
         img.getStyle().set("margin", "0 auto");
@@ -187,7 +192,12 @@ public class CartaView extends VerticalLayout {
         content.setPadding(false);
         content.setSpacing(false);
 
-        Image bigImg = new Image(product.getImageUrl(), product.getName());
+        // Validación de la URL de la imagen
+        String imageUrl = product.getImageUrl();
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            imageUrl = "path/to/default/image.jpg"; // Imagen predeterminada
+        }
+        Image bigImg = new Image(imageUrl, product.getName());
         bigImg.setWidth("420px");
         bigImg.getStyle()
                 .set("border-radius", "16px")

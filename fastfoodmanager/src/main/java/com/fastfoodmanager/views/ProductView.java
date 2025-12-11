@@ -2,10 +2,12 @@ package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Product;
 import com.fastfoodmanager.domain.Allergen;
+import com.fastfoodmanager.domain.FoodType;
 import com.fastfoodmanager.repository.AllergenRepository;
 import com.fastfoodmanager.service.ProductService;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.checkbox.Checkbox;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
@@ -22,8 +24,6 @@ import com.vaadin.flow.data.validator.DoubleRangeValidator;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Route(value = "products", layout = MainLayout.class)
@@ -36,9 +36,10 @@ public class ProductView extends VerticalLayout {
     // Formulario
     private final TextField name = new TextField("Nombre");
     private final TextArea description = new TextArea("Descripción");
-    private final TextArea allergens = new TextArea("Alérgenos");
+    private final ComboBox<FoodType> type = new ComboBox<>("Tipo");
+    private final MultiSelectComboBox<Allergen> allergens = new MultiSelectComboBox<>("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
-    private final Checkbox active = new Checkbox("Activo", true);
+    private final com.vaadin.flow.component.checkbox.Checkbox active = new com.vaadin.flow.component.checkbox.Checkbox("Activo", true);
 
     // Botones
     private final Button save = new Button("Guardar");
@@ -62,9 +63,12 @@ public class ProductView extends VerticalLayout {
 
         // Cabecera
         var header = new H1("Gestión de productos");
-        header.getStyle().set("margin", "0").set("font-weight", "800").set("color", "#1f2937");
+        header.getStyle()
+                .set("margin", "0")
+                .set("font-weight", "800")
+                .set("color", "#1f2937");
 
-        // Botones
+        // Botones estilizados
         stylePrimary(save);
         styleTertiary(clear);
         styleError(delete);
@@ -73,14 +77,10 @@ public class ProductView extends VerticalLayout {
         actionsBar.setAlignItems(Alignment.CENTER);
         actionsBar.getStyle().set("gap", "10px");
 
-        // Formulario
+        // ===== FORMULARIO =====
         description.setMaxLength(800);
         description.setHelperText("Máx. 800 caracteres");
         description.setWidthFull();
-
-        allergens.setMaxLength(400);
-        allergens.setHelperText("Separa por comas. Ej: gluten, lactosa, frutos secos");
-        allergens.setWidthFull();
 
         price.setStep(0.10);
         price.setMin(0.0);
@@ -90,12 +90,23 @@ public class ProductView extends VerticalLayout {
         name.setClearButtonVisible(true);
         name.setWidth("280px");
 
+        // ComboBox FoodType
+        type.setItems(service.findAllFoodTypes());
+        type.setItemLabelGenerator(FoodType::getName);
+        type.setPlaceholder("Selecciona el tipo");
+
+        // MultiSelect alérgenos
+        allergens.setItems(allergenRepo.findAll());
+        allergens.setItemLabelGenerator(Allergen::getName);
+        allergens.setPlaceholder("Selecciona alérgenos si los tiene");
+
+        // FormLayout
         var form = new com.vaadin.flow.component.formlayout.FormLayout();
         form.setResponsiveSteps(
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("0", 1),
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("720px", 2)
         );
-        form.add(name, price, description, allergens, active);
+        form.add(name, type, price, description, allergens, active);
         form.setColspan(description, 2);
         form.setColspan(allergens, 2);
 
@@ -107,17 +118,20 @@ public class ProductView extends VerticalLayout {
                 .set("box-shadow", "0 2px 10px rgba(0,0,0,.06)")
                 .set("margin-bottom", "14px");
 
-        // Grid
+        // ===== GRID =====
         grid.addColumn(Product::getId).setHeader("Id").setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(Product::getName).setHeader("Nombre").setAutoWidth(true);
-        grid.addColumn(Product::getDescription).setHeader("Descripción").setAutoWidth(true)
-                .setFlexGrow(2);
+        grid.addColumn(p -> p.getType() != null ? p.getType().getName() : "")
+                .setHeader("Tipo")
+                .setAutoWidth(true);
+        grid.addColumn(Product::getDescription).setHeader("Descripción").setAutoWidth(true).setFlexGrow(2);
         grid.addColumn(p -> formatMoney(p.getPrice())).setHeader("Precio").setAutoWidth(true);
         grid.addColumn(p -> p.getAllergens() == null ? "" :
-                p.getAllergens().stream()
-                        .map(Allergen::getName)
-                        .collect(Collectors.joining(", "))
-        ).setHeader("Alérgenos").setAutoWidth(true);
+                        p.getAllergens().stream()
+                                .map(Allergen::getName)
+                                .collect(Collectors.joining(", ")))
+                .setHeader("Alérgenos")
+                .setAutoWidth(true);
         grid.addColumn(Product::isActive).setHeader("Activo").setAutoWidth(true);
 
         grid.addThemeVariants(
@@ -137,37 +151,33 @@ public class ProductView extends VerticalLayout {
             }
         });
 
-        // Layout Principal
-        add(formCard, grid);
+        // Layout principal
+        add(header, formCard, grid);
 
-        // Validación
-        binder.forField(name).asRequired("El nombre es obligatorio")
+        // ===== BINDER =====
+        binder.forField(name)
+                .asRequired("El nombre es obligatorio")
                 .bind(Product::getName, Product::setName);
 
         binder.forField(description)
                 .bind(Product::getDescription, Product::setDescription);
 
+        binder.forField(type)
+                .asRequired("Debes elegir un tipo de comida")
+                .bind(Product::getType, Product::setType);
+
         binder.forField(allergens)
-                .withConverter(
-                        s -> Arrays.stream(s.split(","))
-                                .map(String::trim)
-                                .filter(str -> !str.isEmpty())
-                                .map(str -> allergenRepo.findByName(str)
-                                        .orElseGet(() -> allergenRepo.save(new Allergen(str))))
-                                .collect(Collectors.toList()),
-                        list -> list == null ? "" :
-                                list.stream().map(Allergen::getName).collect(Collectors.joining(", "))
-                )
                 .bind(Product::getAllergens, Product::setAllergens);
 
-        binder.forField(price).asRequired("El precio es obligatorio")
+        binder.forField(price)
+                .asRequired("El precio es obligatorio")
                 .withValidator(new DoubleRangeValidator("El precio debe ser ≥ 0", 0.0, null))
                 .bind(Product::getPrice, Product::setPrice);
 
         binder.forField(active)
                 .bind(Product::isActive, Product::setActive);
 
-        // Eventos botones
+        // ===== EVENTOS =====
         save.addClickListener(e -> onSave());
         clear.addClickListener(e -> resetForm());
         delete.addClickListener(e -> {
@@ -198,7 +208,9 @@ public class ProductView extends VerticalLayout {
         }
     }
 
-    private void load() { grid.setItems(service.findAll()); }
+    private void load() {
+        grid.setItems(service.findAll());
+    }
 
     private void resetForm() {
         current = new Product();

@@ -2,6 +2,7 @@ package com.fastfoodmanager.service;
 
 import com.fastfoodmanager.domain.Product;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.SessionScope;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Service
+@SessionScope
 public class CartService {
 
     private final List<Product> cartItems = new ArrayList<>();

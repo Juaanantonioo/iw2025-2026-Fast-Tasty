@@ -44,31 +44,51 @@ public class UserService {
         return userRepository.findByUsername(username).isPresent();
     }
 
-    // ✔ Registro público: SIEMPRE rol USER (password cifrada)
-    public User registerCustomer(String username, String rawPassword) {
+    // ✔ Registro público: siempre rol USER
+    public User registerCustomer(String username, String rawPassword,
+                                 String telefono, String email, String direccion) {
+
         if (exists(username)) {
             throw new IllegalArgumentException("El usuario ya existe");
         }
-        User u = new User();
-        u.setUsername(username);
-        u.setPassword(encoder.encode(rawPassword)); // cifrado
-        u.setRole(Role.USER);
+
+        User u = new User(
+                username,
+                encoder.encode(rawPassword),
+                telefono,
+                email,
+                direccion
+        );
+
         return userRepository.save(u);
     }
 
-    // ✔ Registrar usuario con rol específico (para admin). Password cifrada.
-    public User registerUser(String username, String rawPassword, Role role) {
+    // ✔ Registrar usuario con rol específico (ADMIN, OPERATOR...)
+    public User registerUser(String username, String rawPassword, Role role,
+                             String telefono, String email, String direccion) {
+
         if (exists(username)) {
             throw new IllegalArgumentException("El usuario ya existe");
         }
-        User u = new User(username, encoder.encode(rawPassword), role); // cifrado
+
+        User u = new User(
+                username,
+                encoder.encode(rawPassword),
+                role,
+                telefono,
+                email,
+                direccion
+        );
+
         return userRepository.save(u);
     }
 
-    // ✔ Método usado en el seed (crear admin inicial si no existe)
+    // ✔ Usado al iniciar la app para crear admin si no existe
     public void registerUser(String username, String rawPassword) {
         if (!exists(username)) {
-            userRepository.save(new User(username, encoder.encode(rawPassword), Role.ADMIN)); // cifrado
+            userRepository.save(
+                    new User(username, encoder.encode(rawPassword), Role.ADMIN, "-", "-", "-")
+            );
         }
     }
 
@@ -85,7 +105,6 @@ public class UserService {
         });
     }
 
-    // ✔ Alias para compatibilidad
     public void changeRole(Long id, Role newRole) {
         updateRole(id, newRole);
     }
@@ -95,14 +114,15 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    // ✔ Comprobar roles actuales del usuario logueado
+    // ✔ Comprobar roles actuales
     public boolean hasAnyRole(String... roles) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return false;
 
         Set<String> wanted = Stream.of(roles).collect(Collectors.toSet());
+
         for (GrantedAuthority ga : auth.getAuthorities()) {
-            String name = ga.getAuthority(); // p.ej. "ROLE_ADMIN"
+            String name = ga.getAuthority(); // ejemplo: ROLE_ADMIN
             if (wanted.contains(name.replace("ROLE_", "")) || wanted.contains(name)) {
                 return true;
             }
@@ -110,7 +130,7 @@ public class UserService {
         return false;
     }
 
-    // ✔ Obtener username actual (evita devolver "anonymousUser")
+    // ✔ Obtener username actual
     public String getCurrentUsername() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
         if (a == null || !a.isAuthenticated()) return null;
@@ -118,7 +138,7 @@ public class UserService {
         return "anonymousUser".equals(name) ? null : name;
     }
 
-    // ✔ Cerrar sesión y limpiar contexto
+    // ✔ Cerrar sesión
     public void logout() {
         SecurityContextHolder.clearContext();
         try {

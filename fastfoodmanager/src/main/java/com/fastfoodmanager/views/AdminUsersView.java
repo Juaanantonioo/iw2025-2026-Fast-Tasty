@@ -26,6 +26,10 @@ public class AdminUsersView extends VerticalLayout {
     private final TextField username = new TextField("Nuevo operador - usuario");
     private final PasswordField password = new PasswordField("Contraseña");
 
+    private final TextField telefono = new TextField("Teléfono");
+    private final TextField email = new TextField("Email");
+    private final TextField direccion = new TextField("Dirección");
+
     public AdminUsersView(UserService userService) {
         this.userService = userService;
 
@@ -44,10 +48,20 @@ public class AdminUsersView extends VerticalLayout {
         password.setClearButtonVisible(true);
         password.setRequired(true);
 
+        telefono.setClearButtonVisible(true);
+        telefono.setRequired(true);
+        telefono.setMaxLength(9);
+
+        email.setClearButtonVisible(true);
+        email.setRequired(true);
+
+        direccion.setClearButtonVisible(true);
+        direccion.setRequired(true);
+
         Button addOperator = new Button("Crear operador", e -> createOperator());
         addOperator.getStyle().set("background", "#ff7b00").set("color", "white");
 
-        HorizontalLayout form = new HorizontalLayout(username, password, addOperator);
+        HorizontalLayout form = new HorizontalLayout(username, password, telefono, email, direccion, addOperator);
         form.setDefaultVerticalComponentAlignment(Alignment.END);
         add(form);
 
@@ -79,15 +93,21 @@ public class AdminUsersView extends VerticalLayout {
     private void createOperator() {
         String u = username.getValue() == null ? "" : username.getValue().trim();
         String p = password.getValue() == null ? "" : password.getValue().trim();
+        String t = telefono.getValue() == null ? "" : telefono.getValue().trim();
+        String e = email.getValue() == null ? "" : email.getValue().trim();
+        String d = direccion.getValue() == null ? "" : direccion.getValue().trim();
 
-        if (u.isEmpty() || p.isEmpty()) {
-            Notification.show("Usuario y contraseña obligatorios");
+        if (u.isEmpty() || p.isEmpty() || t.isEmpty() || e.isEmpty() || d.isEmpty()) {
+            Notification.show("Todos los campos son obligatorios obligatorios");
             return;
         }
         try {
-            userService.registerUser(u, p, Role.OPERATOR);
+            userService.registerUser(u, p, Role.OPERATOR, t, e, d);
             username.clear();
             password.clear();
+            telefono.clear();
+            email.clear();
+            direccion.clear();
             refresh();
             Notification.show("Operador creado");
         } catch (IllegalArgumentException ex) {

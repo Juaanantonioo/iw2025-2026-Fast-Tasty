@@ -20,6 +20,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.text.NumberFormat;
 import java.util.List;

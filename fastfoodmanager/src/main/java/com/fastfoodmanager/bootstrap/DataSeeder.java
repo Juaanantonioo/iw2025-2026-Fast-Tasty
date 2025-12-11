@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Configuration
 public class DataSeeder {
@@ -38,13 +40,13 @@ public class DataSeeder {
 
             // USERS
             if (!userService.exists("admin"))
-                userService.registerUser("admin", "admin", Role.ADMIN);
+                userService.registerUser("admin", "admin", Role.ADMIN, "937567321", "admin@gmail.com", "Calle Mela, 3, Cádiz");
 
             if (!userService.exists("operario1"))
-                userService.registerUser("operario1", "1234", Role.OPERATOR);
+                userService.registerUser("operario1", "1234", Role.OPERATOR, "937573321", "operario1@gmail.com", "Calle Melo, 2, De pan");
 
             if (!userService.exists("cliente1"))
-                userService.registerCustomer("cliente1", "1234");
+                userService.registerCustomer("cliente1", "1234", "937572051", "cliente1@gmail.com", "Calle Milo, 5, Abanca");
 
             // PRODUCTS
             if (productService.findAll().isEmpty()) {
@@ -56,7 +58,7 @@ public class DataSeeder {
                 p1.setPrice(6.50);
                 p1.setActive(true);
                 p1.setType(hamburguesa);
-                p1.setAllergens(List.of(gluten));
+                p1.setAllergens(new HashSet<>(Set.of(gluten))); // <-- Cambio aquí
                 p1.setStock(25);
                 productService.save(p1);
 
@@ -67,7 +69,7 @@ public class DataSeeder {
                 p2.setPrice(2.90);
                 p2.setActive(true);
                 p2.setType(sides);
-                p2.setAllergens(List.of());
+                p2.setAllergens(new HashSet<>()); // <-- Cambio aquí, set vacío
                 p2.setStock(40);
                 productService.save(p2);
             }

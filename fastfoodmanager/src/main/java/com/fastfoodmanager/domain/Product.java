@@ -1,7 +1,8 @@
 package com.fastfoodmanager.domain;
 
 import jakarta.persistence.*;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "product")
@@ -17,19 +18,19 @@ public class Product {
     private Double price;
     private boolean active = true;
 
-    // Nueva relación con FoodType
+    // Relación con FoodType
     @ManyToOne
     @JoinColumn(name = "food_type_id")
     private FoodType type;
 
-    // Nueva relación con Allergen
-    @ManyToMany
+    // Relación con Allergen
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "product_allergen",
             joinColumns = @JoinColumn(name = "product_id"),
             inverseJoinColumns = @JoinColumn(name = "allergen_id")
     )
-    private List<Allergen> allergens;
+    private Set<Allergen> allergens;
 
     @Column(nullable = false)
     private int stock = 0;
@@ -52,22 +53,15 @@ public class Product {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
 
-    // Nuevo getter/setter FoodType
     public FoodType getType() { return type; }
     public void setType(FoodType type) { this.type = type; }
 
-    // Nuevo getter/setter Allergen (lista)
-    public List<Allergen> getAllergens() { return allergens; }
-    public void setAllergens(List<Allergen> allergens) { this.allergens = allergens; }
+    public Set<Allergen> getAllergens() { return allergens; }
+    public void setAllergens(Set<Allergen> allergens) { this.allergens = allergens; }
 
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }
 
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 }

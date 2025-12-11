@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 @Table(name = "users") // evita choque con palabra reservada "user" en H2
 public class User {
 
-    // 🔹 Incluimos USER para el registro público
     public enum Role { ADMIN, OPERATOR, USER }
 
     @Id
@@ -21,20 +20,36 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, name = "role")
-    private Role role = Role.USER; // por defecto: cliente
+    private Role role = Role.USER;
+
+    // 🔹 Nuevos campos
+    @Column(nullable = false, name = "telefono")
+    private String telefono;
+
+    @Column(nullable = false, unique = true, name = "email")
+    private String email;
+
+    @Column(nullable = false, name = "direccion")
+    private String direccion;
 
     public User() {}
 
-    public User(String username, String password) {
+    public User(String username, String password, String telefono, String email, String direccion) {
         this.username = username;
         this.password = password;
         this.role = Role.USER;
+        this.telefono = telefono;
+        this.email = email;
+        this.direccion = direccion;
     }
 
-    public User(String username, String password, Role role) {
+    public User(String username, String password, Role role, String telefono, String email, String direccion) {
         this.username = username;
         this.password = password;
         this.role = role;
+        this.telefono = telefono;
+        this.email = email;
+        this.direccion = direccion;
     }
 
     public Long getId() { return id; }
@@ -47,4 +62,13 @@ public class User {
 
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+
+    public String getTelefono() { return telefono; }
+    public void setTelefono(String telefono) { this.telefono = telefono; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
 }

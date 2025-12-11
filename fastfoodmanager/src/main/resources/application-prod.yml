@@ -31,4 +31,4 @@ spring:
       mode: never             # <- NO ejecutar data.sql en prod
 
 vaadin:
-  launch-browser: true
+  launch-browser: false

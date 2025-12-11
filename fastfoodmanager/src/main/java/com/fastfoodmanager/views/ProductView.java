@@ -12,18 +12,27 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.component.upload.receivers.MemoryBuffer;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.DoubleRangeValidator;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.util.Base64;
 import java.util.stream.Collectors;
 
 @Route(value = "products", layout = MainLayout.class)
@@ -40,6 +49,11 @@ public class ProductView extends VerticalLayout {
     private final MultiSelectComboBox<Allergen> allergens = new MultiSelectComboBox<>("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
     private final com.vaadin.flow.component.checkbox.Checkbox active = new com.vaadin.flow.component.checkbox.Checkbox("Activo", true);
+
+    // Imagen
+    private final MemoryBuffer imageBuffer = new MemoryBuffer();
+    private final Upload imageUpload = new Upload(imageBuffer);
+    private final Image previewImage = new Image();
 
     // Botones
     private final Button save = new Button("Guardar");
@@ -100,15 +114,60 @@ public class ProductView extends VerticalLayout {
         allergens.setItemLabelGenerator(Allergen::getName);
         allergens.setPlaceholder("Selecciona alérgenos si los tiene");
 
+        // Configuración Upload de imagen
+        imageUpload.setAcceptedFileTypes("image/jpeg", "image/png");
+        imageUpload.setMaxFiles(1);
+        imageUpload.setDropLabel(new Span("Arrastra o selecciona la imagen del producto"));
+        imageUpload.setWidthFull();
+
+        previewImage.setWidth("200px");
+        previewImage.setHeight("150px");
+
+        imageUpload.addSucceededListener(event -> {
+            try (InputStream is = imageBuffer.getInputStream()) {
+                BufferedImage bufferedImage = ImageIO.read(is);
+                if (bufferedImage == null) {
+                    Notification.show("Formato de imagen no válido", 3000, Notification.Position.TOP_CENTER);
+                    imageUpload.clearFileList();
+                    previewImage.setSrc("");
+                    return;
+                }
+
+                int width = bufferedImage.getWidth();
+                int height = bufferedImage.getHeight();
+
+                // Validamos dimensiones 400x300
+                if (width != 400 || height != 300) {
+                    Notification.show("La imagen debe tener 400x300 px", 3000, Notification.Position.TOP_CENTER);
+                    imageUpload.clearFileList();
+                    previewImage.setSrc("");
+                    return;
+                }
+
+                // Convertir imagen a Base64 para preview
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(bufferedImage, "png", baos);
+                String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
+                previewImage.setSrc("data:image/png;base64," + base64);
+
+            } catch (Exception ex) {
+                Notification.show("Error al procesar la imagen", 3000, Notification.Position.TOP_CENTER);
+                imageUpload.clearFileList();
+                previewImage.setSrc("");
+            }
+        });
+
         // FormLayout
         var form = new com.vaadin.flow.component.formlayout.FormLayout();
         form.setResponsiveSteps(
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("0", 1),
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("720px", 2)
         );
-        form.add(name, type, price, description, allergens, active);
+        form.add(name, type, price, description, allergens, active, imageUpload, previewImage);
         form.setColspan(description, 2);
         form.setColspan(allergens, 2);
+        form.setColspan(imageUpload, 2);
+        form.setColspan(previewImage, 2);
 
         Div formCard = new Div(form, actionsBar);
         formCard.getStyle()
@@ -146,6 +205,14 @@ public class ProductView extends VerticalLayout {
             if (sel != null) {
                 current = sel;
                 binder.readBean(current);
+
+                // Mostrar imagen del producto seleccionado
+                if (current.getImage() != null) {
+                    String base64 = Base64.getEncoder().encodeToString(current.getImage());
+                    previewImage.setSrc("data:image/png;base64," + base64);
+                } else {
+                    previewImage.setSrc("");
+                }
             } else {
                 resetForm();
             }
@@ -198,13 +265,28 @@ public class ProductView extends VerticalLayout {
     private void onSave() {
         try {
             binder.writeBean(current);
+
+            // Guardar imagen en Product
+            if (imageBuffer.getInputStream() != null) {
+                try (InputStream is = imageBuffer.getInputStream();
+                     ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+                    BufferedImage bufferedImage = ImageIO.read(is);
+                    ImageIO.write(bufferedImage, "png", baos);
+                    current.setImage(baos.toByteArray());
+                }
+            }
+
             service.save(current);
             Notification.show("Producto guardado");
             load();
             current = new Product();
             binder.readBean(current);
+            previewImage.setSrc("");
+            imageUpload.clearFileList();
         } catch (ValidationException ex) {
             Notification.show("Revisa el formulario");
+        } catch (Exception ex) {
+            Notification.show("Error al guardar el producto");
         }
     }
 
@@ -216,10 +298,11 @@ public class ProductView extends VerticalLayout {
         current = new Product();
         binder.readBean(current);
         grid.deselectAll();
+        previewImage.setSrc("");
+        imageUpload.clearFileList();
     }
 
     // Helpers
-
     private static String formatMoney(Double value) {
         if (value == null) return "";
         return String.format("%.2f €", value);

@@ -14,9 +14,12 @@ public class Product {
 
     private String name;
     private String description;
-    private String imageUrl;
     private Double price;
     private boolean active = true;
+
+    // Imagen del producto como blob
+    @Lob
+    private byte[] image;
 
     // Relación con FoodType
     @ManyToOne
@@ -62,6 +65,6 @@ public class Product {
     public int getStock() { return stock; }
     public void setStock(int stock) { this.stock = stock; }
 
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public byte[] getImage() { return image; }
+    public void setImage(byte[] image) { this.image = image; }
 }

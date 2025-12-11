@@ -14,16 +14,15 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.text.NumberFormat;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 
@@ -36,8 +35,7 @@ public class CartaView extends VerticalLayout {
     private final MenuService menuService;
     private final CartService cartService;
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
-
-    private Div productGrid; // <- ahora es atributo de clase
+    private Div productGrid;
 
     public CartaView(MenuService menuService, CartService cartService) {
         this.menuService = menuService;
@@ -52,15 +50,15 @@ public class CartaView extends VerticalLayout {
         // HERO
         Div hero = new Div();
         hero.addClassName("hero-section");
-        hero.getStyle().set("background", "linear-gradient(90deg, #ffb86b, #ff7b00)");
-        hero.getStyle().set("border-radius", "12px");
-        hero.getStyle().set("padding", "26px 32px");
-        hero.getStyle().set("width", "86%");
-        hero.getStyle().set("margin", "30px auto");
-        hero.getStyle().set("color", "white");
-        hero.getStyle().set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
+        hero.getStyle().set("background", "linear-gradient(90deg, #ffb86b, #ff7b00)")
+                .set("border-radius", "12px")
+                .set("padding", "26px 32px")
+                .set("width", "86%")
+                .set("margin", "30px auto")
+                .set("color", "white")
+                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
 
-        // GRID fila título + botón
+        // GRID fila título + botones
         Div gridRow = new Div();
         gridRow.getStyle()
                 .set("display", "grid")
@@ -95,11 +93,11 @@ public class CartaView extends VerticalLayout {
         // GRID Productos
         productGrid = new Div();
         productGrid.addClassName("product-grid");
-        productGrid.getStyle().set("display", "flex");
-        productGrid.getStyle().set("flex-wrap", "wrap");
-        productGrid.getStyle().set("justify-content", "center");
-        productGrid.getStyle().set("gap", "22px");
-        productGrid.getStyle().set("max-width", "1200px");
+        productGrid.getStyle().set("display", "flex")
+                .set("flex-wrap", "wrap")
+                .set("justify-content", "center")
+                .set("gap", "22px")
+                .set("max-width", "1200px");
 
         List<Product> products = menuService.findActiveProducts();
         for (Product p : products) productGrid.add(createProductCard(p));
@@ -125,62 +123,43 @@ public class CartaView extends VerticalLayout {
     private Div createProductCard(Product product) {
         Div card = new Div();
         card.addClassName("product-card");
-        card.getStyle().set("padding", "14px");
-        card.getStyle().set("border-radius", "12px");
-        card.getStyle().set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)");
-        card.getStyle().set("text-align", "center");
-        card.getStyle().set("max-width", "260px");
-        card.getStyle().set("background-color", "white");
+        card.getStyle().set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)")
+                .set("text-align", "center")
+                .set("max-width", "260px")
+                .set("background-color", "white");
 
         H1 name = new H1(product.getName());
         name.addClassName("product-name");
-        name.getStyle().set("color", "#ff7b00");
-        name.getStyle().set("font-size", "1.35rem");
-        name.getStyle().set("margin", "8px 0 0");
+        name.getStyle().set("color", "#ff7b00")
+                .set("font-size", "1.35rem")
+                .set("margin", "8px 0 0");
 
-        // Validación de la URL de la imagen
-        String imageUrl = product.getImageUrl();
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            imageUrl = "path/to/default/image.jpg"; // Imagen predeterminada
-        }
-        Image img = new Image(imageUrl, product.getName());
+        // Imagen desde byte[]
+        Image img = new Image(getImageDataUrl(product), product.getName());
         img.setWidth("180px");
-        img.getStyle().set("border-radius", "12px");
-        img.getStyle().set("margin", "0 auto");
+        img.getStyle().set("border-radius", "12px")
+                .set("margin", "0 auto");
 
-        Paragraph price = new Paragraph(currency.format(java.math.BigDecimal.valueOf(product.getPrice())));
+        Paragraph price = new Paragraph(currency.format(product.getPrice()));
         price.addClassName("product-price");
-        price.getStyle().set("font-weight", "bold");
-        price.getStyle().set("margin", "8px 0 10px");
+        price.getStyle().set("font-weight", "bold")
+                .set("margin", "8px 0 10px");
 
         Button addToCart = new Button("Agregar al Pedido", e -> {
             if (!isAuthenticated()) {
                 UI.getCurrent().navigate("login");
                 return;
             }
-
             cartService.addProduct(product);
-
-            Notification notification = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
-            notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            Notification notif = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
-        addToCart.getStyle().set("background-color", "#ff7b00");
-        addToCart.getStyle().set("color", "white");
-        addToCart.getStyle().set("font-weight", "700");
-        addToCart.getStyle().set("border-radius", "8px");
-        addToCart.getStyle().set("width", "100%");
-        addToCart.getStyle().set("margin-top", "8px");
+        styleButton(addToCart);
 
-        Button detailsBtn = new Button("Ver detalles", e -> {
-            System.out.println("Detalles de: " + product.getName());
-            openDetailsDialog(product);
-        });
-        detailsBtn.getStyle().set("background-color", "#ff7b00");
-        detailsBtn.getStyle().set("color", "white");
-        detailsBtn.getStyle().set("font-weight", "600");
-        detailsBtn.getStyle().set("border-radius", "8px");
-        detailsBtn.getStyle().set("width", "100%");
-        detailsBtn.getStyle().set("margin-top", "8px");
+        Button detailsBtn = new Button("Ver detalles", e -> openDetailsDialog(product));
+        styleButton(detailsBtn, 600);
 
         card.add(img, name, price, addToCart, detailsBtn);
         return card;
@@ -194,15 +173,9 @@ public class CartaView extends VerticalLayout {
         content.setPadding(false);
         content.setSpacing(false);
 
-        // Validación de la URL de la imagen
-        String imageUrl = product.getImageUrl();
-        if (imageUrl == null || imageUrl.isEmpty()) {
-            imageUrl = "path/to/default/image.jpg"; // Imagen predeterminada
-        }
-        Image bigImg = new Image(imageUrl, product.getName());
+        Image bigImg = new Image(getImageDataUrl(product), product.getName());
         bigImg.setWidth("420px");
-        bigImg.getStyle()
-                .set("border-radius", "16px")
+        bigImg.getStyle().set("border-radius", "16px")
                 .set("margin", "0 auto 20px auto")
                 .set("display", "block")
                 .set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
@@ -213,17 +186,12 @@ public class CartaView extends VerticalLayout {
                         : "Sin descripción disponible."
         );
 
-        Paragraph price = new Paragraph("Precio: " +
-                currency.format(java.math.BigDecimal.valueOf(product.getPrice())));
+        Paragraph price = new Paragraph("Precio: " + currency.format(product.getPrice()));
         price.getStyle().set("font-weight", "700");
 
-        // Listar Alérgenos
         UnorderedList allergensList = new UnorderedList();
-
         if (product.getAllergens() != null && !product.getAllergens().isEmpty()) {
-            product.getAllergens().forEach(a ->
-                    allergensList.add(new ListItem(a.getName()))
-            );
+            product.getAllergens().forEach(a -> allergensList.add(new ListItem(a.getName())));
         } else {
             allergensList.add(new ListItem("— Sin información de alérgenos —"));
         }
@@ -231,40 +199,17 @@ public class CartaView extends VerticalLayout {
         content.add(bigImg, desc, price, new H3("Alérgenos"), allergensList);
         dialog.add(content);
 
-        // ✔ Mostrar notificación tras cerrarse el diálogo
-        dialog.addOpenedChangeListener(ev -> {
-            boolean opened = ev.isOpened();
-            boolean pending = dialog.getElement().getProperty("showAddedNotification", false);
-
-            if (!opened && pending) {
-                dialog.getElement().setProperty("showAddedNotification", false);
-
-                Notification notif = Notification.show(
-                        "Añadido al pedido",
-                        2000,
-                        Notification.Position.MIDDLE
-                );
-                notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            }
-        });
-
         Button addButton = new Button("Agregar al Pedido", e -> {
             if (!isAuthenticated()) {
                 UI.getCurrent().navigate("login");
                 return;
             }
-
             cartService.addProduct(product);
-
-            // ✔ indicar que debe mostrarse la notificación
-            dialog.getElement().setProperty("showAddedNotification", true);
-
-            dialog.close(); // el mensaje aparecerá DESPUÉS
+            dialog.close();
+            Notification notif = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
+            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
-        addButton.getStyle().set("background-color", "#ff7b00")
-                .set("color", "white")
-                .set("font-weight", "700")
-                .set("border-radius", "8px");
+        styleButton(addButton);
 
         Button close = new Button("Cerrar", e -> dialog.close());
         dialog.getFooter().add(close, addButton);
@@ -273,36 +218,37 @@ public class CartaView extends VerticalLayout {
         dialog.open();
     }
 
+    private String getImageDataUrl(Product product) {
+        if (product.getImage() != null && product.getImage().length > 0) {
+            String base64 = Base64.getEncoder().encodeToString(product.getImage());
+            return "data:image/png;base64," + base64;
+        }
+        return "path/to/default/image.jpg";
+    }
+
     private void openFilterMenu() {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Filtrar productos");
 
         VerticalLayout content = new VerticalLayout();
 
-        // SELECT Tipo
         Select<FoodType> typeSelect = new Select<>();
         typeSelect.setLabel("Tipo");
         typeSelect.setItemLabelGenerator(FoodType::getName);
-        List<FoodType> types = menuService.findAllFoodTypes();
-        typeSelect.setItems(types != null ? types : List.of());
+        typeSelect.setItems(menuService.findAllFoodTypes());
 
-        // SELECT Alérgenos
         Select<Allergen> allergenSelect = new Select<>();
         allergenSelect.setLabel("Alérgenos");
         allergenSelect.setItemLabelGenerator(a -> "Sin " + a.getName());
-        List<Allergen> allergens = menuService.findAllAllergens();
-        allergenSelect.setItems(allergens != null ? allergens : List.of());
+        allergenSelect.setItems(menuService.findAllAllergens());
 
         Button apply = new Button("Aplicar filtros", e -> {
-            // IDs de alérgenos a excluir
             List<Long> allergenIds = allergenSelect.getValue() != null
                     ? List.of(allergenSelect.getValue().getId())
                     : List.of();
 
-            // Traer productos activos que NO tengan los alérgenos seleccionados
             List<Product> products = menuService.findActiveWithoutAllergens(allergenIds);
 
-            // Filtrar también por tipo de comida si se seleccionó
             FoodType selectedType = typeSelect.getValue();
             if (selectedType != null) {
                 products = products.stream()
@@ -310,7 +256,6 @@ public class CartaView extends VerticalLayout {
                         .toList();
             }
 
-            // Limpiar grid y mostrar productos filtrados
             productGrid.removeAll();
             products.forEach(p -> productGrid.add(createProductCard(p)));
 
@@ -325,17 +270,17 @@ public class CartaView extends VerticalLayout {
         dialog.open();
     }
 
-    private void applyFilters(FoodType type, Allergen allergen) {
-        productGrid.removeAll();
+    private void styleButton(Button b) {
+        styleButton(b, 700);
+    }
 
-        menuService.findActiveProducts().stream()
-                // Filtrar por tipo
-                .filter(p -> type == null || (p.getType() != null && p.getType().getId().equals(type.getId())))
-                // Filtrar por alérgeno: comparar por nombre
-                .filter(p -> allergen == null ||
-                        (p.getAllergens() != null && p.getAllergens().stream()
-                                .anyMatch(a -> a.getName().equalsIgnoreCase(allergen.getName()))))
-                .forEach(p -> productGrid.add(createProductCard(p)));
+    private void styleButton(Button b, int fontWeight) {
+        b.getStyle().set("background-color", "#ff7b00")
+                .set("color", "white")
+                .set("font-weight", String.valueOf(fontWeight))
+                .set("border-radius", "8px")
+                .set("width", "100%")
+                .set("margin-top", "8px");
     }
 
 }

@@ -1,5 +1,7 @@
 package com.fastfoodmanager.views;
 
+import com.fastfoodmanager.services.BookingService;
+import com.fastfoodmanager.models.Booking;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -31,7 +33,12 @@ import java.util.Map;
 @AnonymousAllowed
 public class WelcomeView extends VerticalLayout {
 
-    public WelcomeView() {
+    private final BookingService bookingService;
+
+    // Constructor con inyección de dependencias
+    public WelcomeView(BookingService bookingService) {
+        this.bookingService = bookingService;
+
         addClassName("welcome-view");
         setSizeFull();
         setSpacing(false);
@@ -131,25 +138,6 @@ public class WelcomeView extends VerticalLayout {
         nombre.setRequired(true);
         TextField telefono = new TextField("Teléfono");
         telefono.setRequired(true);
-        telefono.setMaxLength(9);
-        telefono.setMinLength(9);
-        telefono.setErrorMessage("Debe tener exactamente 9 dígitos.");
-
-// --- Validación en vivo (solo números + máximo 9) ---
-        telefono.addValueChangeListener(e -> {
-            String value = telefono.getValue();
-
-            // Eliminar todo lo que no sean dígitos
-            if (!value.matches("\\d*")) {
-                telefono.setValue(value.replaceAll("\\D", ""));
-            }
-
-            // Limitar a 9 caracteres
-            if (telefono.getValue().length() > 9) {
-                telefono.setValue(telefono.getValue().substring(0, 9));
-            }
-        });
-
         EmailField email = new EmailField("Email");
         email.setRequiredIndicatorVisible(true);
 
@@ -180,29 +168,64 @@ public class WelcomeView extends VerticalLayout {
                 new FormLayout.ResponsiveStep("1024px", 3)
         );
 
-        Button reservar = new Button("Confirmar reserva", e -> {
+        Button reservar = new Button("Confirmar reserva");
+        reservar.addClickListener(e -> {
+            String tel = telefono.getValue().replaceAll("\\D", ""); // eliminar caracteres no numéricos
 
-            // --- Validación estricta al confirmar ---
-            if (!telefono.getValue().matches("\\d{9}")) {
-                Notification.show(
-                        "El teléfono debe tener exactamente 9 dígitos numéricos.",
-                        3000,
-                        Notification.Position.TOP_CENTER
-                );
-                return;
-            }
+            boolean hasError = false;
 
+            // Limpiamos el estado anterior
+            telefono.setInvalid(false);
+
+            // Comprobación de campos obligatorios
             if (nombre.isEmpty() || telefono.isEmpty() || email.isEmpty()
                     || fecha.isEmpty() || hora.isEmpty() || personas.isEmpty()) {
-                Notification.show("Rellena todos los campos obligatorios.",
-                        3000, Notification.Position.TOP_CENTER);
+                Notification.show("Rellena todos los campos obligatorios.", 3000, Notification.Position.TOP_CENTER);
                 return;
             }
 
-            Notification.show(
-                    "Reserva enviada. Te confirmaremos por email o WhatsApp.",
-                    3500, Notification.Position.TOP_CENTER
-            );
+            // Validación del teléfono
+            if (tel.length() != 9) {
+                telefono.setInvalid(true);
+                telefono.setErrorMessage("El teléfono debe tener 9 dígitos");
+                hasError = true;
+            }
+
+            if (hasError) {
+                return; // no seguimos con la reserva si hay error
+            }
+
+            try {
+                // Crear objeto Reserva
+                Booking reserva = new Booking(
+                        nombre.getValue(),
+                        tel,
+                        email.getValue(),
+                        fecha.getValue(),
+                        hora.getValue(),
+                        personas.getValue(),
+                        comentarios.getValue() != null ? comentarios.getValue() : ""
+                );
+
+                bookingService.procesarReserva(reserva);
+
+                Notification.show("Reserva enviada. Te confirmaremos por email.", 3500, Notification.Position.TOP_CENTER);
+
+                // Limpiar formulario
+                nombre.clear();
+                telefono.clear();
+                email.clear();
+                fecha.clear();
+                hora.clear();
+                personas.setValue(2);
+                comentarios.clear();
+
+                // Limpiar estado inválido
+                telefono.setInvalid(false);
+
+            } catch (Exception ex) {
+                Notification.show("Error al procesar la reserva. Inténtalo de nuevo.", 3000, Notification.Position.TOP_CENTER);
+            }
         });
         reservar.addClassName("primary-btn");
 

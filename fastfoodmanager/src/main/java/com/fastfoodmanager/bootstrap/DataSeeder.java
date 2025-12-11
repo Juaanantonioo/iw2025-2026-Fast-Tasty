@@ -14,6 +14,9 @@ import org.springframework.context.annotation.Configuration;
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Configuration
 public class DataSeeder {
@@ -54,23 +57,36 @@ public class DataSeeder {
                 Product p1 = new Product();
                 p1.setName("Hamburguesa clásica");
                 p1.setDescription("Ternera, lechuga, tomate, salsa");
-                p1.setImageUrl("/images/clasica.jpg");
                 p1.setPrice(6.50);
                 p1.setActive(true);
                 p1.setType(hamburguesa);
-                p1.setAllergens(new HashSet<>(Set.of(gluten))); // <-- Cambio aquí
+                p1.setAllergens(new HashSet<>(Set.of(gluten)));
                 p1.setStock(25);
+
+                // Cargar imagen desde recursos
+                try (InputStream is = getClass().getResourceAsStream("/images/clasica.jpg")) {
+                    if (is != null) {
+                        p1.setImage(is.readAllBytes());
+                    }
+                }
+
                 productService.save(p1);
 
                 Product p2 = new Product();
                 p2.setName("Patatas grande");
                 p2.setDescription("Ración grande de patatas");
-                p2.setImageUrl("/images/patatas_con_queso_y_bacon.jpg");
                 p2.setPrice(2.90);
                 p2.setActive(true);
                 p2.setType(sides);
-                p2.setAllergens(new HashSet<>()); // <-- Cambio aquí, set vacío
+                p2.setAllergens(new HashSet<>());
                 p2.setStock(40);
+
+                try (InputStream is = getClass().getResourceAsStream("/images/patatas_con_queso_y_bacon.jpg")) {
+                    if (is != null) {
+                        p2.setImage(is.readAllBytes());
+                    }
+                }
+
                 productService.save(p2);
             }
 

@@ -13,9 +13,22 @@ spring:
       hibernate:
         format_sql: true
 
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: false  # Desactivado en producción
   sql:
     init:
       mode: never             # <- NO ejecutar data.sql en prod
 
 vaadin:
-  launch-browser: true
+  launch-browser: false

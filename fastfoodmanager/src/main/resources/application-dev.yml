@@ -13,6 +13,22 @@ spring:
     init:
       mode: always  # extra por si acaso
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: fastandtasty.restaurante@gmail.com
+    password: ftdlgvifnqgbgrkm
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        transport:
+          protocol: smtp
+        debug: true  # Solo para desarrollo
+
 h2:
   console:
     enabled: true

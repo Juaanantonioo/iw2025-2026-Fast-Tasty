@@ -32,3 +32,10 @@ spring:
 h2:
   console:
     enabled: true
+
+
+logging:
+  level:
+    com.vaadin.flow.server: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO

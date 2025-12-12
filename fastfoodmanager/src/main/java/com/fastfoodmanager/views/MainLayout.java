@@ -18,38 +18,62 @@ import org.springframework.security.core.context.SecurityContextHolder;
 public class MainLayout extends AppLayout {
 
     public MainLayout() {
-        // ---------- Logo / título ----------
+
         H1 title = new H1("🍔 FastTasty");
         title.getStyle()
                 .set("font-size", "1.4rem")
                 .set("margin", "0")
                 .set("color", "#ff5c1a");
 
-        // ---------- Enlaces principales ----------
-        RouterLink home = new RouterLink("Inicio", WelcomeView.class);
-        RouterLink carta = new RouterLink("Carta", CartaView.class);
-
-        HorizontalLayout tabs = new HorizontalLayout(home, carta);
+        HorizontalLayout tabs = new HorizontalLayout();
         tabs.setSpacing(true);
         tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
 
-        // ---------- Enlaces según rol ----------
-        if (isAuthenticated()) {
-            // Para clientes (USER o ADMIN): Mis pedidos
-            tabs.add(new RouterLink("Mis pedidos", MyOrdersView.class));
+        // NO autenticado: Carta + Login
+        if (!isAuthenticated()) {
+            tabs.add(new RouterLink("Carta", CartaView.class));
+            tabs.add(new RouterLink("Entrar", LoginView.class));
         }
 
-        if (hasRole("ADMIN")) {
-            tabs.add(new RouterLink("Gestionar productos", ProductView.class));
-            tabs.add(new RouterLink("Gestionar usuarios", AdminUsersView.class));
+        // USER: Carta + Pedido + Mis pedidos (SIN Inicio)
+        if (hasRole("USER")) {
+            tabs.add(new RouterLink("Carta", CartaView.class));
+            tabs.add(new RouterLink("Pedido", ClientOrderView.class));
+            tabs.add(new RouterLink("Mis pedidos", ClientOrdersView.class));
         }
 
+        // OPERATOR
         if (hasRole("OPERATOR")) {
+            tabs.add(new RouterLink("Inicio", OperatorHomeView.class));
             tabs.add(new RouterLink("Pedidos", OperatorOrdersView.class));
             tabs.add(new RouterLink("Stock", OperatorStockView.class));
         }
 
-        // ---------- Lado derecho: saludo + login/logout ----------
+        // COOK
+        if (hasRole("COOK")) {
+            tabs.add(new RouterLink("Inicio", CookHomeView.class));
+            tabs.add(new RouterLink("Cocina", CookOrdersView.class));
+        }
+
+        // DELIVERY
+        if (hasRole("DELIVERY")) {
+            tabs.add(new RouterLink("Inicio", DeliveryHomeView.class));
+            tabs.add(new RouterLink("Repartos", DeliveryOrdersView.class));
+        }
+
+        // MANAGER
+        if (hasRole("MANAGER")) {
+            tabs.add(new RouterLink("Inicio", ManagerHomeView.class));
+            tabs.add(new RouterLink("Gestión de usuarios", ManagerUsersView.class));
+        }
+
+        // ADMIN
+        if (hasRole("ADMIN")) {
+            tabs.add(new RouterLink("Inicio", AdminHomeView.class));
+            tabs.add(new RouterLink("Gestionar productos", ProductView.class));
+            tabs.add(new RouterLink("Gestionar encargados", AdminManagersView.class));
+        }
+
         HorizontalLayout right = new HorizontalLayout();
         right.setSpacing(true);
         right.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
@@ -60,7 +84,7 @@ public class MainLayout extends AppLayout {
             Button logout = new Button("Salir", e -> {
                 VaadinSession.getCurrent().getSession().invalidate();
                 VaadinSession.getCurrent().close();
-                UI.getCurrent().navigate(""); // vuelve al inicio
+                UI.getCurrent().navigate("login");
             });
 
             logout.getStyle()
@@ -70,21 +94,11 @@ public class MainLayout extends AppLayout {
                     .set("padding", "6px 14px")
                     .set("font-weight", "600")
                     .set("cursor", "pointer");
+
             right.add(logout);
-        } else {
-            Button login = new Button("Entrar", e -> UI.getCurrent().navigate("login"));
-            login.getStyle()
-                    .set("background-color", "#ff7b00")
-                    .set("color", "#fff")
-                    .set("border-radius", "8px")
-                    .set("padding", "6px 14px")
-                    .set("font-weight", "600");
-            right.add(login);
         }
 
-        // ---------- Barra superior ----------
         HorizontalLayout bar = new HorizontalLayout(title, tabs, right);
-        bar.addClassName("app-topbar");
         bar.setWidthFull();
         bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
         bar.expand(tabs);
@@ -97,10 +111,10 @@ public class MainLayout extends AppLayout {
         addToNavbar(bar);
     }
 
-    // ---------- Métodos auxiliares ----------
     private boolean isAuthenticated() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
-        return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
+        return a != null && a.isAuthenticated()
+                && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
     }
 
     private String getUsername() {

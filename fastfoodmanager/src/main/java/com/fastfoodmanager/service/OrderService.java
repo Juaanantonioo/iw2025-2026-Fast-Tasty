@@ -3,120 +3,198 @@ package com.fastfoodmanager.service;
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.User;
+import com.fastfoodmanager.domain.User.Role;
 import com.fastfoodmanager.repository.OrderRepository;
-import com.fastfoodmanager.repository.ProductRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.time.LocalDateTime;
+import java.util.*;
 
 @Service
 public class OrderService {
 
     private final OrderRepository orderRepo;
-    private final ProductRepository productRepo;
+    private final UserService userService;
 
-    public OrderService(OrderRepository orderRepo, ProductRepository productRepo) {
+    public OrderService(OrderRepository orderRepo, UserService userService) {
         this.orderRepo = orderRepo;
-        this.productRepo = productRepo;
+        this.userService = userService;
     }
 
-    // ---------- CRUD básico ----------
+    // CRUD
     public List<Order> findAll() { return orderRepo.findAll(); }
-
     public Optional<Order> findById(Long id) { return orderRepo.findById(id); }
-
     public Order save(Order order) { return orderRepo.save(order); }
-
     public void delete(Long id) { orderRepo.deleteById(id); }
-
     public long count() { return orderRepo.count(); }
 
-    // ---------- Lógica de negocio ----------
-    /**
-     * Crea un pedido desde el carrito. Enlaza items, inicializa estado y
-     * lo asigna por defecto a "operario1" para que sea visible al operario.
-     */
+    // Crear pedido: queda ENVIADO hasta que el operario lo mande a cocina
     public Order createOrder(User user, List<OrderItem> items) {
         Order order = new Order(user, items);
-        if (items != null) {
-            for (OrderItem item : items) {
-                if (item != null) item.setOrder(order);
-            }
-        }
-        order.setStatus("EN COCINA");
-        order.setAssignedTo("operario1"); // quita esta línea si no quieres asignación automática
+        for (OrderItem item : items) item.setOrder(order);
+
+        order.setStatus("ENVIADO");
+        order.setAssignedTo(null);    // aún no hay operario asignado
+        order.setDeliveryTo(null);    // aún no hay repartidor
+
+        order.setPaid(false);
+        order.setPaidAt(null);
+
+        order.setCookedDone(false);
+        order.setCookedAt(null);
+        order.setCookedBy(null);
+
         order.recalcTotal();
         return orderRepo.save(order);
     }
 
-    /** Cambia el estado de un pedido */
-    public void updateStatus(Long orderId, String newStatus) {
+    // Pago simulado SIN tocar el estado
+    public void markAsPaid(Long orderId) {
         orderRepo.findById(orderId).ifPresent(o -> {
-            o.setStatus(newStatus);
+            o.setPaid(true);
+            o.setPaidAt(LocalDateTime.now());
             orderRepo.save(o);
         });
     }
 
-    /** Marca como pagado */
-    public void markAsPaid(Long orderId) {
-        updateStatus(orderId, "PAGADO");
+    // Operario: bandeja (ENVIADO sin asignar) + los suyos
+    public List<Order> findForOperatorInbox(String operatorUsername) {
+        List<Order> unassigned = orderRepo.findByStatusAndAssignedToIsNull("ENVIADO");
+        List<Order> mine = orderRepo.findByAssignedTo(operatorUsername);
+
+        Map<Long, Order> map = new LinkedHashMap<>();
+        for (Order o : unassigned) map.put(o.getId(), o);
+        for (Order o : mine) map.put(o.getId(), o);
+        return new ArrayList<>(map.values());
     }
 
-    // ---------- Consultas por rol ----------
-    /** Pedidos para un operario concreto (por su username) */
-    public List<Order> findForOperator(String operatorUsername) {
-        if (operatorUsername == null || operatorUsername.isBlank()) {
-            return Collections.emptyList();
-        }
-        return orderRepo.findByAssignedTo(operatorUsername);
-    }
-
-    /**
-     * Pedidos de un cliente por username. Usa el método del repositorio y,
-     * si no existiera en tu repo por cualquier motivo, hace un fallback
-     * por filtro en memoria (case-insensitive).
-     */
+    // Cliente
     public List<Order> findForCustomer(String customerUsername) {
-        if (customerUsername == null || customerUsername.isBlank()) {
-            return Collections.emptyList();
-        }
-        try {
-            // Repositorio recomendado:
-            return orderRepo.findByCustomer_Username(customerUsername);
-        } catch (Throwable ignored) {
-            // Fallback seguro por si el método no existiera en tu repo
-            String u = customerUsername.toLowerCase();
-            return orderRepo.findAll().stream()
-                    .filter(o -> o.getCustomer() != null && o.getCustomer().getUsername() != null)
-                    .filter(o -> o.getCustomer().getUsername().equalsIgnoreCase(u)
-                            || o.getCustomer().getUsername().equalsIgnoreCase(customerUsername))
-                    .toList();
-        }
+        return orderRepo.findByCustomer_Username(customerUsername);
     }
 
-    /** Pedidos del usuario autenticado actualmente */
     public List<Order> findForCurrentCustomer() {
-        String username = getCurrentUsername();
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        String username = (a != null) ? a.getName() : null;
         return (username == null) ? List.of() : findForCustomer(username);
     }
 
-    /** Pedidos no entregados (útil para listados generales) */
-    public List<Order> findPending() {
-        return orderRepo.findByStatusNot("ENTREGADO");
+    // =======================
+    // COCINA (con FETCH JOIN)
+    // =======================
+    public List<Order> findForCook() {
+        return orderRepo.findKitchenQueueWithItems("EN COCINA");
     }
 
-    // ---------- Helpers ----------
-    /** Devuelve el username autenticado o null si no hay sesión */
-    private String getCurrentUsername() {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
-        if (a == null || !a.isAuthenticated() || Objects.equals("anonymousUser", String.valueOf(a.getPrincipal()))) {
-            return null;
-        }
-        return a.getName();
+    // Repartidor: ver sus pedidos EN REPARTO
+    public List<Order> findForDelivery(String deliveryUsername) {
+        return orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
     }
+
+    // OPERARIO: ENVIADO -> EN COCINA (asigna el operario)
+    public void sendToKitchen(Long orderId, String operatorUsername) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            if (!"ENVIADO".equalsIgnoreCase(o.getStatus())) {
+                throw new IllegalStateException("Solo se puede mandar a cocina un pedido ENVIADO.");
+            }
+            if (o.getAssignedTo() == null) o.setAssignedTo(operatorUsername);
+
+            if (!operatorUsername.equals(o.getAssignedTo())) {
+                throw new IllegalStateException("Este pedido ya está siendo gestionado por otro operario.");
+            }
+
+            o.setStatus("EN COCINA");
+            orderRepo.save(o);
+        });
+    }
+
+    // COCINERO: EN COCINA -> LISTO
+    public void markCookedDone(Long orderId, String cookUsername) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            if (!"EN COCINA".equalsIgnoreCase(o.getStatus())) {
+                throw new IllegalStateException("Solo se puede marcar HECHO un pedido EN COCINA.");
+            }
+            o.setCookedDone(true);
+            o.setCookedBy(cookUsername);
+            o.setCookedAt(LocalDateTime.now());
+
+            o.setStatus("LISTO");
+            orderRepo.save(o);
+        });
+    }
+
+    // OPERARIO: LISTO -> EN REPARTO (asignando un repartidor libre)
+    public void assignFreeDeliveryAndSend(Long orderId, String operatorUsername) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            if (o.getAssignedTo() == null || !operatorUsername.equals(o.getAssignedTo())) {
+                throw new IllegalStateException("Solo el operario asignado puede gestionar este pedido.");
+            }
+            if (!"LISTO".equalsIgnoreCase(o.getStatus())) {
+                throw new IllegalStateException("Solo se puede asignar reparto cuando el pedido está LISTO.");
+            }
+
+            List<User> deliveries = userService.findByRole(Role.DELIVERY);
+            String free = deliveries.stream()
+                    .map(User::getUsername)
+                    .filter(u -> !orderRepo.existsByDeliveryToAndStatus(u, "EN REPARTO"))
+                    .findFirst()
+                    .orElse(null);
+
+            if (free == null) {
+                throw new IllegalStateException("No hay repartidores libres ahora mismo.");
+            }
+
+            o.setDeliveryTo(free);
+            o.setStatus("EN REPARTO");
+            orderRepo.save(o);
+        });
+    }
+
+    // REPARTIDOR: EN REPARTO -> ENTREGADO
+    public void markDelivered(Long orderId, String deliveryUsername) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            if (!"EN REPARTO".equalsIgnoreCase(o.getStatus())) {
+                throw new IllegalStateException("Solo se puede entregar un pedido EN REPARTO.");
+            }
+            if (o.getDeliveryTo() == null || !deliveryUsername.equals(o.getDeliveryTo())) {
+                throw new IllegalStateException("Este pedido no está asignado a ti.");
+            }
+            o.setStatus("ENTREGADO");
+            orderRepo.save(o);
+        });
+    }
+
+    // Compatibilidad con código antiguo que llamaba updateStatus(...)
+    public void updateStatus(Long orderId, String newStatus) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            String ns = (newStatus == null) ? "" : newStatus.trim().toUpperCase();
+
+            // "PAGADO" antiguo
+            if ("PAGADO".equals(ns)) {
+                o.setPaid(true);
+                o.setPaidAt(LocalDateTime.now());
+                orderRepo.save(o);
+                return;
+            }
+
+            // Estados soportados
+            if (List.of("ENVIADO", "EN COCINA", "LISTO", "EN REPARTO", "ENTREGADO").contains(ns)) {
+                o.setStatus(ns);
+                orderRepo.save(o);
+                return;
+            }
+
+            throw new IllegalArgumentException("Estado no soportado: " + newStatus);
+        });
+    }
+
+    public List<Order> findForCurrentCustomerWithItems() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        String username = (a != null) ? a.getName() : null;
+        if (username == null || "anonymousUser".equals(username)) return List.of();
+        return orderRepo.findByCustomer_UsernameOrderByCreatedAtDesc(username);
+    }
+
 }

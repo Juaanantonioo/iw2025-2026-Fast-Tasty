@@ -17,16 +17,31 @@ public class Order {
     @ManyToOne(optional = false)
     private User customer;
 
-    // Estado del pedido (EN COCINA, PREPARANDO, LISTO, ENTREGADO, PAGADO, etc.)
+    // Flujo: ENVIADO -> EN COCINA -> LISTO -> EN REPARTO -> ENTREGADO
     @Column(nullable = false)
-    private String status = "EN COCINA";
+    private String status = "ENVIADO";
 
-    // Operario asignado (opcional)
+    // Operario asignado (username)
     private String assignedTo;
+
+    // Repartidor asignado (username)
+    private String deliveryTo;
+
+    // Pago simulado
+    @Column(nullable = false)
+    private boolean paid = false;
+
+    private LocalDateTime paidAt;
+
+    // Cocina
+    @Column(nullable = false)
+    private boolean cookedDone = false;
+
+    private String cookedBy;
+    private LocalDateTime cookedAt;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // Total del pedido
     private Double total = 0.0;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -38,73 +53,56 @@ public class Order {
         this.customer = customer;
         if (items != null) {
             this.items = items;
-            this.items.forEach(i -> i.setOrder(this)); // enlace bidireccional
+            this.items.forEach(i -> i.setOrder(this));
         }
         recalcTotal();
     }
 
-    /**
-     * Recalcula el total del pedido sumando el precio de cada item.
-     */
     public void recalcTotal() {
         this.total = items.stream()
-                .mapToDouble(i -> i.getProduct().getPrice() * i.getQuantity())
+                .mapToDouble(i -> i.getUnitPrice() * i.getQuantity())
                 .sum();
     }
 
-    // --- Getters & Setters ---
+    public Long getId() { return id; }
 
-    public Long getId() {
-        return id;
-    }
+    public User getCustomer() { return customer; }
+    public void setCustomer(User customer) { this.customer = customer; }
 
-    public User getCustomer() {
-        return customer;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public void setCustomer(User customer) {
-        this.customer = customer;
-    }
+    public String getAssignedTo() { return assignedTo; }
+    public void setAssignedTo(String assignedTo) { this.assignedTo = assignedTo; }
 
-    public String getStatus() {
-        return status;
-    }
+    public String getDeliveryTo() { return deliveryTo; }
+    public void setDeliveryTo(String deliveryTo) { this.deliveryTo = deliveryTo; }
 
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    public boolean isPaid() { return paid; }
+    public void setPaid(boolean paid) { this.paid = paid; }
 
-    public String getAssignedTo() {
-        return assignedTo;
-    }
+    public LocalDateTime getPaidAt() { return paidAt; }
+    public void setPaidAt(LocalDateTime paidAt) { this.paidAt = paidAt; }
 
-    public void setAssignedTo(String assignedTo) {
-        this.assignedTo = assignedTo;
-    }
+    public boolean isCookedDone() { return cookedDone; }
+    public void setCookedDone(boolean cookedDone) { this.cookedDone = cookedDone; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public String getCookedBy() { return cookedBy; }
+    public void setCookedBy(String cookedBy) { this.cookedBy = cookedBy; }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
+    public LocalDateTime getCookedAt() { return cookedAt; }
+    public void setCookedAt(LocalDateTime cookedAt) { this.cookedAt = cookedAt; }
 
-    public Double getTotal() {
-        return total;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setTotal(Double total) {
-        this.total = total;
-    }
+    public Double getTotal() { return total; }
+    public void setTotal(Double total) { this.total = total; }
 
-    public List<OrderItem> getItems() {
-        return items;
-    }
-
+    public List<OrderItem> getItems() { return items; }
     public void setItems(List<OrderItem> items) {
-        this.items = items != null ? items : new ArrayList<>();
-        this.items.forEach(i -> i.setOrder(this)); // mantener referencia
+        this.items = (items != null) ? items : new ArrayList<>();
+        this.items.forEach(i -> i.setOrder(this));
         recalcTotal();
     }
 }

@@ -1,286 +1,165 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Product;
-import com.fastfoodmanager.domain.FoodType;
-import com.fastfoodmanager.domain.Allergen;
-import com.fastfoodmanager.service.MenuService;
-import com.fastfoodmanager.service.CartService;
+import com.fastfoodmanager.service.ProductService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.dependency.CssImport;
-import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.*;
+import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Image;
+import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
-import com.vaadin.flow.component.select.Select;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.vaadin.flow.server.StreamResource;
+import com.vaadin.flow.server.VaadinSession;
+import jakarta.annotation.security.RolesAllowed;
 
-import java.text.NumberFormat;
-import java.util.Base64;
+import java.io.ByteArrayInputStream;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
 
 @PageTitle("Carta | FastTasty")
+@RolesAllowed({"USER"})
 @Route(value = "carta", layout = MainLayout.class)
-@CssImport("./themes/my-theme/home.css")
-@AnonymousAllowed
 public class CartaView extends VerticalLayout {
 
-    private final MenuService menuService;
-    private final CartService cartService;
-    private final NumberFormat currency = NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
-    private Div productGrid;
+    private static final String CART_KEY = "CART_MAP"; // Map<Long productId, Integer qty>
 
-    public CartaView(MenuService menuService, CartService cartService) {
-        this.menuService = menuService;
-        this.cartService = cartService;
+    private final ProductService productService;
 
-        addClassName("carta-view");
-        setPadding(false);
-        setSpacing(false);
+    private final Span carritoCount = new Span();
+
+    public CartaView(ProductService productService) {
+        this.productService = productService;
+
         setSizeFull();
-        setAlignItems(Alignment.CENTER);
+        setSpacing(true);
+        setPadding(true);
 
-        // HERO
-        Div hero = new Div();
-        hero.addClassName("hero-section");
-        hero.getStyle().set("background", "linear-gradient(90deg, #ffb86b, #ff7b00)")
-                .set("border-radius", "12px")
-                .set("padding", "26px 32px")
-                .set("width", "86%")
-                .set("margin", "30px auto")
-                .set("color", "white")
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
+        H1 title = new H1("Nuestra Carta");
+        title.getStyle().set("margin", "0");
 
-        // GRID fila título + botones
-        Div gridRow = new Div();
-        gridRow.getStyle()
+        Button goCart = new Button("Pedido", e -> UI.getCurrent().navigate("client/order"));
+        goCart.getStyle()
+                .set("border-radius", "10px")
+                .set("font-weight", "600");
+
+        updateCartCount();
+
+        HorizontalLayout top = new HorizontalLayout(title, goCart, carritoCount);
+        top.setWidthFull();
+        top.setDefaultVerticalComponentAlignment(Alignment.CENTER);
+        top.expand(title);
+        top.setJustifyContentMode(JustifyContentMode.BETWEEN);
+
+        var grid = new com.vaadin.flow.component.html.Div();
+        grid.getStyle()
                 .set("display", "grid")
-                .set("grid-template-columns", "1fr auto 1fr")
-                .set("align-items", "center")
-                .set("gap", "16px");
+                .set("grid-template-columns", "repeat(auto-fill, minmax(260px, 1fr))")
+                .set("gap", "18px")
+                .set("width", "100%");
 
-        H1 title = new H1("Nuestra Carta 🍽️");
-        title.addClassName("hero-title");
-        title.getStyle().set("justify-self", "center");
+        List<Product> products = productService.findAll().stream()
+                .filter(Product::isActive)
+                .toList();
 
-        Button viewCartButton = new Button("🧾 Pedido", e -> UI.getCurrent().navigate("carrito"));
-        viewCartButton.addClassName("hero-pill");
-
-        Div rightBox = new Div(viewCartButton);
-        rightBox.getStyle().set("justify-self", "end");
-
-        Button filterButton = new Button("🔍 Filtrar");
-        filterButton.addClassName("hero-pill");
-        filterButton.addClickListener(e -> openFilterMenu());
-
-        Div leftBox = new Div(filterButton);
-        leftBox.getStyle().set("justify-self", "start");
-
-        gridRow.add(leftBox, title, rightBox);
-
-        Paragraph subtitle = new Paragraph("Descubre todos nuestros platos disponibles para ti");
-        subtitle.addClassName("hero-subtitle");
-
-        hero.add(gridRow, subtitle);
-
-        // GRID Productos
-        productGrid = new Div();
-        productGrid.addClassName("product-grid");
-        productGrid.getStyle().set("display", "flex")
-                .set("flex-wrap", "wrap")
-                .set("justify-content", "center")
-                .set("gap", "22px")
-                .set("max-width", "1200px");
-
-        List<Product> products = menuService.findActiveProducts();
-        for (Product p : products) productGrid.add(createProductCard(p));
-
-        add(hero, productGrid);
-    }
-
-    private boolean isAuthenticated() {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
-        return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
-    }
-
-    private boolean hasRole(String role) {
-        Authentication a = SecurityContextHolder.getContext().getAuthentication();
-        if (a == null) return false;
-        String needed = role.startsWith("ROLE_") ? role : "ROLE_" + role;
-        for (GrantedAuthority ga : a.getAuthorities()) {
-            if (needed.equals(ga.getAuthority())) return true;
+        for (Product p : products) {
+            grid.add(buildCard(p));
         }
-        return false;
+
+        add(top, grid);
     }
 
-    private Div createProductCard(Product product) {
-        Div card = new Div();
-        card.addClassName("product-card");
-        card.getStyle().set("padding", "14px")
-                .set("border-radius", "12px")
-                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)")
-                .set("text-align", "center")
-                .set("max-width", "260px")
-                .set("background-color", "white");
+    private com.vaadin.flow.component.Component buildCard(Product p) {
+        var card = new com.vaadin.flow.component.html.Div();
+        card.getStyle()
+                .set("border", "1px solid #eee")
+                .set("border-radius", "16px")
+                .set("padding", "14px")
+                .set("box-shadow", "0 2px 10px rgba(0,0,0,0.04)")
+                .set("background", "white");
 
-        H1 name = new H1(product.getName());
-        name.addClassName("product-name");
-        name.getStyle().set("color", "#ff7b00")
-                .set("font-size", "1.35rem")
-                .set("margin", "8px 0 0");
+        Image img = buildImage(p);
+        img.setWidth("100%");
+        img.setHeight("180px");
+        img.getStyle().set("object-fit", "cover");
+        img.getStyle().set("border-radius", "12px");
 
-        // Imagen desde byte[]
-        Image img = new Image(getImageDataUrl(product), product.getName());
-        img.setWidth("180px");
-        img.getStyle().set("border-radius", "12px")
-                .set("margin", "0 auto");
+        var name = new Span(p.getName());
+        name.getStyle().set("font-size", "1.1rem").set("font-weight", "700");
 
-        Paragraph price = new Paragraph(currency.format(product.getPrice()));
-        price.addClassName("product-price");
-        price.getStyle().set("font-weight", "bold")
-                .set("margin", "8px 0 10px");
+        var desc = new Paragraph(p.getDescription() == null ? "" : p.getDescription());
+        desc.getStyle().set("margin", "8px 0 10px 0").set("color", "#555");
 
-        Button addToCart = new Button("Agregar al Pedido", e -> {
-            if (!isAuthenticated()) {
-                UI.getCurrent().navigate("login");
-                return;
-            }
-            cartService.addProduct(product);
-            Notification notif = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
-            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        var price = new Span(String.format("€ %.2f", p.getPrice() == null ? 0.0 : p.getPrice()));
+        price.getStyle().set("font-size", "1.05rem").set("font-weight", "700");
+
+        Button addBtn = new Button("Agregar al pedido", e -> {
+            addToCart(p.getId());
+            Notification.show("Añadido: " + p.getName(), 1500, Notification.Position.MIDDLE);
         });
-        styleButton(addToCart);
+        addBtn.getStyle()
+                .set("background", "#ff7b00")
+                .set("color", "white")
+                .set("border-radius", "10px")
+                .set("font-weight", "700")
+                .set("width", "100%");
 
-        Button detailsBtn = new Button("Ver detalles", e -> openDetailsDialog(product));
-        styleButton(detailsBtn, 600);
+        var bottom = new VerticalLayout(price, addBtn);
+        bottom.setSpacing(false);
+        bottom.setPadding(false);
+        bottom.getStyle().set("margin-top", "6px");
 
-        card.add(img, name, price, addToCart, detailsBtn);
+        card.add(img, name, desc, bottom);
         return card;
     }
 
-    private void openDetailsDialog(Product product) {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(product.getName());
+    private Image buildImage(Product p) {
+        byte[] bytes = p.getImage();
+        if (bytes == null || bytes.length == 0) {
+            // Si no hay imagen guardada, mostramos un placeholder simple
+            Image img = new Image();
+            img.setAlt("Sin imagen");
+            img.getElement().setProperty("src", "");
+            return img;
+        }
 
-        VerticalLayout content = new VerticalLayout();
-        content.setPadding(false);
-        content.setSpacing(false);
-
-        Image bigImg = new Image(getImageDataUrl(product), product.getName());
-        bigImg.setWidth("420px");
-        bigImg.getStyle().set("border-radius", "16px")
-                .set("margin", "0 auto 20px auto")
-                .set("display", "block")
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.15)");
-
-        Paragraph desc = new Paragraph(
-                product.getDescription() != null && !product.getDescription().isBlank()
-                        ? product.getDescription()
-                        : "Sin descripción disponible."
+        StreamResource res = new StreamResource(
+                "product-" + p.getId() + ".img",
+                () -> new ByteArrayInputStream(bytes)
         );
 
-        Paragraph price = new Paragraph("Precio: " + currency.format(product.getPrice()));
-        price.getStyle().set("font-weight", "700");
+        return new Image(res, "Imagen producto");
+    }
 
-        UnorderedList allergensList = new UnorderedList();
-        if (product.getAllergens() != null && !product.getAllergens().isEmpty()) {
-            product.getAllergens().forEach(a -> allergensList.add(new ListItem(a.getName())));
-        } else {
-            allergensList.add(new ListItem("— Sin información de alérgenos —"));
+    private void addToCart(Long productId) {
+        Map<Long, Integer> cart = getCart();
+        cart.put(productId, cart.getOrDefault(productId, 0) + 1);
+        VaadinSession.getCurrent().setAttribute(CART_KEY, cart);
+        updateCartCount();
+    }
+
+    private void updateCartCount() {
+        Map<Long, Integer> cart = getCart();
+        int totalUnits = cart.values().stream().mapToInt(Integer::intValue).sum();
+        carritoCount.setText("En carrito: " + totalUnits);
+        carritoCount.getStyle().set("font-weight", "700");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Long, Integer> getCart() {
+        Object o = VaadinSession.getCurrent().getAttribute(CART_KEY);
+        if (o instanceof Map<?, ?> map) {
+            try {
+                return (Map<Long, Integer>) map;
+            } catch (Exception ignored) {}
         }
-
-        content.add(bigImg, desc, price, new H3("Alérgenos"), allergensList);
-        dialog.add(content);
-
-        Button addButton = new Button("Agregar al Pedido", e -> {
-            if (!isAuthenticated()) {
-                UI.getCurrent().navigate("login");
-                return;
-            }
-            cartService.addProduct(product);
-            dialog.close();
-            Notification notif = Notification.show("Añadido al pedido", 2000, Notification.Position.MIDDLE);
-            notif.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        });
-        styleButton(addButton);
-
-        Button close = new Button("Cerrar", e -> dialog.close());
-        dialog.getFooter().add(close, addButton);
-
-        dialog.setWidth("720px");
-        dialog.open();
+        Map<Long, Integer> fresh = new HashMap<>();
+        VaadinSession.getCurrent().setAttribute(CART_KEY, fresh);
+        return fresh;
     }
-
-    private String getImageDataUrl(Product product) {
-        if (product.getImage() != null && product.getImage().length > 0) {
-            String base64 = Base64.getEncoder().encodeToString(product.getImage());
-            return "data:image/png;base64," + base64;
-        }
-        return "path/to/default/image.jpg";
-    }
-
-    private void openFilterMenu() {
-        Dialog dialog = new Dialog();
-        dialog.setHeaderTitle("Filtrar productos");
-
-        VerticalLayout content = new VerticalLayout();
-
-        Select<FoodType> typeSelect = new Select<>();
-        typeSelect.setLabel("Tipo");
-        typeSelect.setItemLabelGenerator(FoodType::getName);
-        typeSelect.setItems(menuService.findAllFoodTypes());
-
-        Select<Allergen> allergenSelect = new Select<>();
-        allergenSelect.setLabel("Alérgenos");
-        allergenSelect.setItemLabelGenerator(a -> "Sin " + a.getName());
-        allergenSelect.setItems(menuService.findAllAllergens());
-
-        Button apply = new Button("Aplicar filtros", e -> {
-            List<Long> allergenIds = allergenSelect.getValue() != null
-                    ? List.of(allergenSelect.getValue().getId())
-                    : List.of();
-
-            List<Product> products = menuService.findActiveWithoutAllergens(allergenIds);
-
-            FoodType selectedType = typeSelect.getValue();
-            if (selectedType != null) {
-                products = products.stream()
-                        .filter(p -> p.getType() != null && p.getType().getId().equals(selectedType.getId()))
-                        .toList();
-            }
-
-            productGrid.removeAll();
-            products.forEach(p -> productGrid.add(createProductCard(p)));
-
-            dialog.close();
-        });
-
-        Button close = new Button("Cerrar", e -> dialog.close());
-
-        content.add(typeSelect, allergenSelect);
-        dialog.add(content);
-        dialog.getFooter().add(close, apply);
-        dialog.open();
-    }
-
-    private void styleButton(Button b) {
-        styleButton(b, 700);
-    }
-
-    private void styleButton(Button b, int fontWeight) {
-        b.getStyle().set("background-color", "#ff7b00")
-                .set("color", "white")
-                .set("font-weight", String.valueOf(fontWeight))
-                .set("border-radius", "8px")
-                .set("width", "100%")
-                .set("margin-top", "8px");
-    }
-
 }

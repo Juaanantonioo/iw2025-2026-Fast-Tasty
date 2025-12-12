@@ -27,77 +27,59 @@ public class UserService {
         this.encoder = encoder;
     }
 
-    // ✔ Autenticación comparando con BCrypt
     public boolean authenticate(String username, String rawPassword) {
         return userRepository.findByUsername(username)
                 .map(u -> encoder.matches(rawPassword, u.getPassword()))
                 .orElse(false);
     }
 
-    // ✔ Buscar usuario por nombre
     public Optional<User> findByUsername(String username) {
         return userRepository.findByUsername(username);
     }
 
-    // ✔ Comprobar existencia
     public boolean exists(String username) {
         return userRepository.findByUsername(username).isPresent();
     }
 
-    // ✔ Registro público: siempre rol USER
     public User registerCustomer(String username, String rawPassword,
                                  String telefono, String email, String direccion) {
 
-        if (exists(username)) {
-            throw new IllegalArgumentException("El usuario ya existe");
-        }
+        if (exists(username)) throw new IllegalArgumentException("El usuario ya existe");
 
-        User u = new User(
-                username,
-                encoder.encode(rawPassword),
-                telefono,
-                email,
-                direccion
-        );
-
+        User u = new User(username, encoder.encode(rawPassword), telefono, email, direccion);
         return userRepository.save(u);
     }
 
-    // ✔ Registrar usuario con rol específico (ADMIN, OPERATOR...)
     public User registerUser(String username, String rawPassword, Role role,
                              String telefono, String email, String direccion) {
 
-        if (exists(username)) {
-            throw new IllegalArgumentException("El usuario ya existe");
-        }
+        if (exists(username)) throw new IllegalArgumentException("El usuario ya existe");
 
-        User u = new User(
-                username,
-                encoder.encode(rawPassword),
-                role,
-                telefono,
-                email,
-                direccion
-        );
-
+        User u = new User(username, encoder.encode(rawPassword), role, telefono, email, direccion);
         return userRepository.save(u);
     }
 
-    // ✔ Usado al iniciar la app para crear admin si no existe
-    public void registerUser(String username, String rawPassword) {
+    public User registerStaff(String username, String rawPassword, Role role,
+                              String telefono, String email, String direccion) {
+        return registerUser(username, rawPassword, role, telefono, email, direccion);
+    }
+
+    public void registerInitialAdminIfMissing(String username, String rawPassword) {
         if (!exists(username)) {
-            userRepository.save(
-                    new User(username, encoder.encode(rawPassword), Role.ADMIN, "-", "-", "-")
-            );
+            userRepository.save(new User(username, encoder.encode(rawPassword), Role.ADMIN, "-", "-", "-"));
         }
     }
 
-    // ✔ Listar todos
     public List<User> findAll() {
         return userRepository.findAll();
     }
 
-    // ✔ Cambiar rol
+    public List<User> findByRole(Role role) {
+        return userRepository.findAll().stream()
+                .filter(u -> u.getRole() == role)
+                .toList();
+    }
+
     public void updateRole(Long id, Role newRole) {
         userRepository.findById(id).ifPresent(u -> {
             u.setRole(newRole);
@@ -109,12 +91,10 @@ public class UserService {
         updateRole(id, newRole);
     }
 
-    // ✔ Eliminar
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
 
-    // ✔ Comprobar roles actuales
     public boolean hasAnyRole(String... roles) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return false;
@@ -122,15 +102,12 @@ public class UserService {
         Set<String> wanted = Stream.of(roles).collect(Collectors.toSet());
 
         for (GrantedAuthority ga : auth.getAuthorities()) {
-            String name = ga.getAuthority(); // ejemplo: ROLE_ADMIN
-            if (wanted.contains(name.replace("ROLE_", "")) || wanted.contains(name)) {
-                return true;
-            }
+            String name = ga.getAuthority(); // ROLE_ADMIN
+            if (wanted.contains(name.replace("ROLE_", "")) || wanted.contains(name)) return true;
         }
         return false;
     }
 
-    // ✔ Obtener username actual
     public String getCurrentUsername() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
         if (a == null || !a.isAuthenticated()) return null;
@@ -138,7 +115,6 @@ public class UserService {
         return "anonymousUser".equals(name) ? null : name;
     }
 
-    // ✔ Cerrar sesión
     public void logout() {
         SecurityContextHolder.clearContext();
         try {

@@ -15,8 +15,6 @@ import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 @Configuration
 public class DataSeeder {
@@ -30,28 +28,33 @@ public class DataSeeder {
 
         return args -> {
 
-            // FOOD TYPES
             FoodType hamburguesa = foodTypeRepository.findByName("Hamburguesa")
                     .orElseGet(() -> foodTypeRepository.save(new FoodType("Hamburguesa")));
 
             FoodType sides = foodTypeRepository.findByName("Sides")
                     .orElseGet(() -> foodTypeRepository.save(new FoodType("Sides")));
 
-            // ALLERGENS
             Allergen gluten = allergenRepository.findByName("Gluten")
                     .orElseGet(() -> allergenRepository.save(new Allergen("Gluten")));
 
-            // USERS
             if (!userService.exists("admin"))
                 userService.registerUser("admin", "admin", Role.ADMIN, "937567321", "admin@gmail.com", "Calle Mela, 3, Cádiz");
+
+            if (!userService.exists("encargado1"))
+                userService.registerUser("encargado1", "1234", Role.MANAGER, "937500001", "encargado1@gmail.com", "Calle Encargado, 1, Cádiz");
 
             if (!userService.exists("operario1"))
                 userService.registerUser("operario1", "1234", Role.OPERATOR, "937573321", "operario1@gmail.com", "Calle Melo, 2, De pan");
 
+            if (!userService.exists("cocinero1"))
+                userService.registerUser("cocinero1", "1234", Role.COOK, "937500002", "cocinero1@gmail.com", "Cocina 1");
+
+            if (!userService.exists("repartidor1"))
+                userService.registerUser("repartidor1", "1234", Role.DELIVERY, "937500003", "repartidor1@gmail.com", "Reparto 1");
+
             if (!userService.exists("cliente1"))
                 userService.registerCustomer("cliente1", "1234", "937572051", "cliente1@gmail.com", "Calle Milo, 5, Abanca");
 
-            // PRODUCTS
             if (productService.findAll().isEmpty()) {
 
                 Product p1 = new Product();
@@ -63,13 +66,9 @@ public class DataSeeder {
                 p1.setAllergens(new HashSet<>(Set.of(gluten)));
                 p1.setStock(25);
 
-                // Cargar imagen desde recursos
                 try (InputStream is = getClass().getResourceAsStream("/images/clasica.jpg")) {
-                    if (is != null) {
-                        p1.setImage(is.readAllBytes());
-                    }
+                    if (is != null) p1.setImage(is.readAllBytes());
                 }
-
                 productService.save(p1);
 
                 Product p2 = new Product();
@@ -82,15 +81,12 @@ public class DataSeeder {
                 p2.setStock(40);
 
                 try (InputStream is = getClass().getResourceAsStream("/images/patatas_con_queso_y_bacon.jpg")) {
-                    if (is != null) {
-                        p2.setImage(is.readAllBytes());
-                    }
+                    if (is != null) p2.setImage(is.readAllBytes());
                 }
-
                 productService.save(p2);
             }
 
-            // ORDERS
+            // Pedidos de ejemplo
             if (orderService.count() == 0) {
 
                 User cliente = userService.findByUsername("cliente1").orElse(null);
@@ -98,21 +94,20 @@ public class DataSeeder {
 
                 if (cliente != null && productos.size() >= 2) {
 
+                    // Pedido 1: ENVIADO (recién pagado)
                     OrderItem i1 = new OrderItem(productos.get(0), 2);
                     OrderItem i2 = new OrderItem(productos.get(1), 1);
                     Order o1 = orderService.createOrder(cliente, List.of(i1, i2));
-                    o1.setAssignedTo("operario1");
-                    orderService.updateStatus(o1.getId(), "EN COCINA");
-                    orderService.save(o1);
+                    orderService.markAsPaid(o1.getId());
 
+                    // Pedido 2: ya en cocina (simulado: operario lo manda a cocina)
                     OrderItem i3 = new OrderItem(productos.get(0), 1);
                     Order o2 = orderService.createOrder(cliente, List.of(i3));
-                    o2.setAssignedTo("operario1");
-                    orderService.updateStatus(o2.getId(), "PREPARANDO");
-                    orderService.save(o2);
-                }
+                    orderService.markAsPaid(o2.getId());
+                    orderService.sendToKitchen(o2.getId(), "operario1");
 
-                System.out.println("✅ Pedidos de ejemplo creados");
+                    System.out.println("✅ Pedidos de ejemplo creados");
+                }
             }
         };
     }

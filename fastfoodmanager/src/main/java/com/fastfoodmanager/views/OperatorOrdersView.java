@@ -12,13 +12,14 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
-
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Objects;
+
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 
 @PageTitle("Pedidos")
 @RolesAllowed({"OPERATOR","ADMIN"})
@@ -27,10 +28,6 @@ public class OperatorOrdersView extends VerticalLayout {
 
     private final OrderService orderService;
     private final Grid<Order> grid = new Grid<>(Order.class, false);
-
-    private static final List<String> WORKFLOW = List.of(
-            "EN COCINA", "PREPARANDO", "LISTO", "EN REPARTO", "ENTREGADO"
-    );
 
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -41,10 +38,9 @@ public class OperatorOrdersView extends VerticalLayout {
         setSpacing(true);
         setPadding(true);
 
-        var title = new H1("📦 Pedidos asignados");
+        var title = new H1("📦 Operario - Pedidos");
         var refreshBtn = new Button("Refrescar", e -> refresh());
 
-        // Autorefresco cada 5s
         UI.getCurrent().setPollInterval(5000);
         UI.getCurrent().addPollListener(e -> refresh());
 
@@ -53,7 +49,6 @@ public class OperatorOrdersView extends VerticalLayout {
         top.setJustifyContentMode(JustifyContentMode.BETWEEN);
         top.setAlignItems(Alignment.CENTER);
 
-        // ----- Columnas -----
         grid.addColumn(Order::getId).setHeader("ID").setAutoWidth(true).setSortable(true);
         grid.addColumn(o -> o.getCustomer() != null ? o.getCustomer().getUsername() : "-")
                 .setHeader("Cliente").setAutoWidth(true);
@@ -64,19 +59,14 @@ public class OperatorOrdersView extends VerticalLayout {
         grid.addColumn(o -> o.getCreatedAt() == null ? "-" : o.getCreatedAt().format(fmt))
                 .setHeader("Creado").setAutoWidth(true).setSortable(true);
 
-        // Acción: siguiente estado
-        grid.addComponentColumn(o -> {
-            String next = nextStatus(o.getStatus());
-            Button b = new Button(next == null ? "—" : ("A " + next), e -> {
-                if (next != null) {
-                    orderService.updateStatus(o.getId(), next);
-                    Notification.show("Pedido " + o.getId() + " → " + next, 2000, Notification.Position.MIDDLE);
-                    refresh();
-                }
-            });
-            b.setEnabled(next != null);
-            return b;
-        }).setHeader("Avanzar").setAutoWidth(true);
+        grid.addColumn(o -> o.getAssignedTo() == null ? "-" : o.getAssignedTo())
+                .setHeader("Operario").setAutoWidth(true);
+
+        grid.addColumn(o -> o.getDeliveryTo() == null ? "-" : o.getDeliveryTo())
+                .setHeader("Repartidor").setAutoWidth(true);
+
+        grid.addComponentColumn(o -> buildActionButton(o))
+                .setHeader("Acción").setAutoWidth(true);
 
         add(top, grid);
         setFlexGrow(1, grid);
@@ -84,27 +74,59 @@ public class OperatorOrdersView extends VerticalLayout {
         refresh();
     }
 
-    /** Calcula el siguiente estado del flujo predefinido. */
-    private String nextStatus(String current) {
-        if (current == null) return WORKFLOW.get(0);
-        int idx = WORKFLOW.indexOf(current);
-        if (idx < 0 || idx == WORKFLOW.size() - 1) return null; // ya en último
-        return WORKFLOW.get(idx + 1);
+    private Button buildActionButton(Order o) {
+        String me = getCurrentUsername();
+
+        // ENVIADO: puedo tomarlo y mandarlo a cocina
+        if ("ENVIADO".equalsIgnoreCase(o.getStatus())) {
+            Button b = new Button("Mandar a cocina", e -> {
+                try {
+                    orderService.sendToKitchen(o.getId(), me);
+                    Notification.show("Pedido " + o.getId() + " → EN COCINA", 2000, Notification.Position.MIDDLE);
+                    refresh();
+                } catch (Exception ex) {
+                    Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE);
+                }
+            });
+            return b;
+        }
+
+        // LISTO: solo el operario asignado puede asignar repartidor libre y enviar a reparto
+        if ("LISTO".equalsIgnoreCase(o.getStatus())) {
+            Button b = new Button("Asignar repartidor libre", e -> {
+                try {
+                    orderService.assignFreeDeliveryAndSend(o.getId(), me);
+                    Notification.show("Pedido " + o.getId() + " → EN REPARTO", 2000, Notification.Position.MIDDLE);
+                    refresh();
+                } catch (Exception ex) {
+                    Notification.show(ex.getMessage(), 3000, Notification.Position.MIDDLE);
+                }
+            });
+            b.setEnabled(me != null && me.equals(o.getAssignedTo()));
+            return b;
+        }
+
+        // Otros estados: sin acción
+        Button none = new Button("—");
+        none.setEnabled(false);
+        return none;
     }
 
-    /** Carga pedidos de BD (pendientes/no entregados) y los pinta. */
     private void refresh() {
-        List<Order> data;
-        try {
-            // preferente: sólo los no ENTREGADO
-            data = orderService.findPending();
-        } catch (Throwable ignored) {
-            // fallback si tu servicio aún no tiene findPending()
-            data = orderService.findAll().stream()
-                    .filter(o -> !Objects.equals(o.getStatus(), "ENTREGADO"))
-                    .toList();
+        String operator = getCurrentUsername();
+        if (operator == null) {
+            grid.setItems(List.of());
+            return;
         }
+        List<Order> data = orderService.findForOperatorInbox(operator);
         grid.setItems(data);
         grid.getDataProvider().refreshAll();
+    }
+
+    private String getCurrentUsername() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        if (a == null || !a.isAuthenticated()) return null;
+        String name = a.getName();
+        return "anonymousUser".equals(name) ? null : name;
     }
 }

@@ -17,9 +17,14 @@ import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.timepicker.TimePicker;
+import com.vaadin.flow.router.BeforeEnterEvent;
+import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -31,11 +36,10 @@ import java.util.Map;
 @Route("")
 @CssImport("./themes/my-theme/welcome.css")
 @AnonymousAllowed
-public class WelcomeView extends VerticalLayout {
+public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
 
     private final BookingService bookingService;
 
-    // Constructor con inyección de dependencias
     public WelcomeView(BookingService bookingService) {
         this.bookingService = bookingService;
 
@@ -78,7 +82,6 @@ public class WelcomeView extends VerticalLayout {
         hero.addClassName("welcome-hero");
         hero.addClassName("content-layer");
 
-        // Encabezado del hero
         Div heroHeader = new Div();
         heroHeader.addClassName("hero-header");
 
@@ -88,7 +91,6 @@ public class WelcomeView extends VerticalLayout {
         start.addClassName("welcome-button");
         heroHeader.add(title, desc, start);
 
-        // Barra de pestañas
         Tab tabUbicacion = new Tab("Ubicación");
         Tab tabHorarios = new Tab("Horarios");
         Tab tabReservas = new Tab("Reservas");
@@ -98,7 +100,6 @@ public class WelcomeView extends VerticalLayout {
         tabs.getElement().setAttribute("theme", "centered small");
         tabs.addClassName("hero-tabs");
 
-        // Paneles (contenidos) dentro del hero
         Div panelContainer = new Div();
         panelContainer.addClassName("hero-panels");
 
@@ -170,34 +171,23 @@ public class WelcomeView extends VerticalLayout {
 
         Button reservar = new Button("Confirmar reserva");
         reservar.addClickListener(e -> {
-            String tel = telefono.getValue().replaceAll("\\D", ""); // eliminar caracteres no numéricos
-
-            boolean hasError = false;
-
-            // Limpiamos el estado anterior
+            String tel = telefono.getValue().replaceAll("\\D", "");
             telefono.setInvalid(false);
 
-            // Comprobación de campos obligatorios
             if (nombre.isEmpty() || telefono.isEmpty() || email.isEmpty()
                     || fecha.isEmpty() || hora.isEmpty() || personas.isEmpty()) {
                 Notification.show("Rellena todos los campos obligatorios.", 3000, Notification.Position.TOP_CENTER);
                 return;
             }
 
-            // Validación del teléfono
             if (tel.length() != 9) {
                 telefono.setInvalid(true);
                 telefono.setErrorMessage("El teléfono debe tener 9 dígitos");
-                hasError = true;
-            }
-
-            if (hasError) {
-                return; // no seguimos con la reserva si hay error
+                return;
             }
 
             try {
-                // Crear objeto Reserva
-                Booking reserva = new Booking(
+                Booking reservaObj = new Booking(
                         nombre.getValue(),
                         tel,
                         email.getValue(),
@@ -207,11 +197,10 @@ public class WelcomeView extends VerticalLayout {
                         comentarios.getValue() != null ? comentarios.getValue() : ""
                 );
 
-                bookingService.procesarReserva(reserva);
+                bookingService.procesarReserva(reservaObj);
 
                 Notification.show("Reserva enviada. Te confirmaremos por email.", 3500, Notification.Position.TOP_CENTER);
 
-                // Limpiar formulario
                 nombre.clear();
                 telefono.clear();
                 email.clear();
@@ -219,8 +208,6 @@ public class WelcomeView extends VerticalLayout {
                 hora.clear();
                 personas.setValue(2);
                 comentarios.clear();
-
-                // Limpiar estado inválido
                 telefono.setInvalid(false);
 
             } catch (Exception ex) {
@@ -233,17 +220,14 @@ public class WelcomeView extends VerticalLayout {
 
         panelContainer.add(panelUbicacion, panelHorarios, panelReservas);
 
-        // Añadimos todo dentro del hero
         hero.add(heroHeader, tabs, panelContainer);
         add(hero);
 
-        // ===== Conmutación de paneles dentro del hero =====
         Map<Tab, Div> panelByTab = new HashMap<>();
         panelByTab.put(tabUbicacion, panelUbicacion);
         panelByTab.put(tabHorarios, panelHorarios);
         panelByTab.put(tabReservas, panelReservas);
 
-        // Estado inicial
         panelByTab.values().forEach(p -> p.setVisible(false));
         panelByTab.get(tabUbicacion).setVisible(true);
         tabs.setSelectedTab(tabUbicacion);
@@ -253,5 +237,50 @@ public class WelcomeView extends VerticalLayout {
             Div panel = panelByTab.get(e.getSelectedTab());
             if (panel != null) panel.setVisible(true);
         });
+    }
+
+    @Override
+    public void beforeEnter(BeforeEnterEvent event) {
+        if (!isAuthenticated()) return;
+
+        // Redirección por rol (ajusta rutas según tus vistas reales)
+        if (hasRole("ADMIN")) {
+            event.forwardTo("admin/users");
+            return;
+        }
+        if (hasRole("MANAGER")) {
+            event.forwardTo("manager/users");
+            return;
+        }
+        if (hasRole("OPERATOR")) {
+            event.forwardTo("operator/orders");
+            return;
+        }
+        if (hasRole("COOK")) {
+            event.forwardTo("cook/orders");
+            return;
+        }
+        if (hasRole("DELIVERY")) {
+            event.forwardTo("delivery/orders");
+            return;
+        }
+
+        // USER normal
+        event.forwardTo("carta");
+    }
+
+    private boolean isAuthenticated() {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
+    }
+
+    private boolean hasRole(String role) {
+        Authentication a = SecurityContextHolder.getContext().getAuthentication();
+        if (a == null) return false;
+        String needed = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        for (GrantedAuthority ga : a.getAuthorities()) {
+            if (needed.equals(ga.getAuthority())) return true;
+        }
+        return false;
     }
 }

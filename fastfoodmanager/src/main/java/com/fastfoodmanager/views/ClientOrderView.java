@@ -1,107 +1,151 @@
 package com.fastfoodmanager.views;
 
-import com.fastfoodmanager.domain.*;
+import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.domain.OrderItem;
+import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.service.OrderService;
 import com.fastfoodmanager.service.ProductService;
 import com.fastfoodmanager.service.UserService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinSession;
 import jakarta.annotation.security.RolesAllowed;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 @PageTitle("Pedido | Cliente")
 @RolesAllowed("USER")
 @Route(value = "client/order", layout = MainLayout.class)
 public class ClientOrderView extends VerticalLayout {
 
+    private static final String CART_KEY = "CART_MAP";
+
     private final ProductService productService;
     private final OrderService orderService;
     private final UserService userService;
 
-    private final List<OrderItem> carrito = new ArrayList<>();
-    private final Grid<OrderItem> grid = new Grid<>(OrderItem.class, false);
-    private final Span totalLabel = new Span("Total: 0 €");
+    private final Grid<Row> grid = new Grid<>(Row.class, false);
 
     public ClientOrderView(ProductService productService, OrderService orderService, UserService userService) {
         this.productService = productService;
         this.orderService = orderService;
         this.userService = userService;
 
-        add(new H2("🛒 Tu pedido"));
+        setSizeFull();
+        setSpacing(true);
+        setPadding(true);
 
-        // Mostrar productos disponibles
-        Grid<Product> productosGrid = new Grid<>(Product.class, false);
-        productosGrid.addColumn(Product::getName).setHeader("Producto");
-        productosGrid.addColumn(Product::getPrice).setHeader("Precio (€)");
-        productosGrid.addComponentColumn(p -> new Button("Añadir", e -> addToCart(p)));
-        productosGrid.setItems(productService.findAll());
+        add(new H1("Carrito"));
 
-        grid.addColumn(i -> i.getProduct().getName()).setHeader("Producto");
-        grid.addColumn(OrderItem::getQuantity).setHeader("Cantidad");
-        grid.addComponentColumn(i -> new Button("Eliminar", e -> removeFromCart(i)));
+        grid.addColumn(Row::name).setHeader("Producto").setFlexGrow(1);
+        grid.addColumn(r -> String.valueOf(r.qty())).setHeader("Cantidad").setAutoWidth(true);
+        grid.addColumn(r -> String.format("€ %.2f", r.unitPrice())).setHeader("Precio").setAutoWidth(true);
 
-        Button pagar = new Button("💳 Pagar con PayPal (Simulado)", e -> simulatePayPalPayment());
+        grid.addComponentColumn(r -> new Button("Eliminar", e -> {
+            removeProduct(r.productId());
+            refresh();
+        })).setHeader("Acción").setAutoWidth(true);
 
-        pagar.getStyle()
-                .set("background-color", "#0070ba")
+        Button pay = new Button("Pagar", e -> pay());
+        pay.getStyle()
+                .set("background", "#0070ba")
                 .set("color", "white")
-                .set("font-weight", "600");
+                .set("font-weight", "700")
+                .set("border-radius", "10px")
+                .set("padding", "10px 18px");
 
-        add(productosGrid, new H2("🧾 Carrito"), grid, totalLabel, pagar);
+        add(grid, pay);
+        setFlexGrow(1, grid);
+
+        refresh();
     }
 
-    private void addToCart(Product p) {
-        carrito.stream()
-                .filter(i -> i.getProduct().getId().equals(p.getId()))
-                .findFirst()
-                .ifPresentOrElse(
-                        i -> i.setQuantity(i.getQuantity() + 1),
-                        () -> carrito.add(new OrderItem(p, 1))
-                );
-        refreshCart();
+    private void refresh() {
+        Map<Long, Integer> cart = getCart();
+        List<Product> all = productService.findAll();
+
+        List<Row> rows = new ArrayList<>();
+        for (var entry : cart.entrySet()) {
+            Long pid = entry.getKey();
+            int qty = entry.getValue();
+            Product p = all.stream().filter(x -> Objects.equals(x.getId(), pid)).findFirst().orElse(null);
+            if (p != null) rows.add(new Row(pid, p.getName(), qty, p.getPrice() == null ? 0.0 : p.getPrice()));
+        }
+
+        grid.setItems(rows);
+        grid.getDataProvider().refreshAll();
     }
 
-    private void removeFromCart(OrderItem item) {
-        carrito.remove(item);
-        refreshCart();
+    private void removeProduct(Long productId) {
+        Map<Long, Integer> cart = getCart();
+        cart.remove(productId);
+        VaadinSession.getCurrent().setAttribute(CART_KEY, cart);
     }
 
-    private void refreshCart() {
-        grid.setItems(carrito);
-        double total = carrito.stream()
-                .mapToDouble(i -> i.getProduct().getPrice() * i.getQuantity())
-                .sum();
-        totalLabel.setText("Total: " + String.format("%.2f", total) + " €");
-    }
-
-    private void simulatePayPalPayment() {
-        if (carrito.isEmpty()) {
-            Notification.show("Tu carrito está vacío");
+    private void pay() {
+        Map<Long, Integer> cart = getCart();
+        if (cart.isEmpty()) {
+            Notification.show("El carrito está vacío", 2000, Notification.Position.MIDDLE);
             return;
         }
 
-        User user = userService.findByUsername(userService.getCurrentUsername()).orElse(null);
-        if (user == null) {
-            Notification.show("Debes iniciar sesión para realizar un pedido");
+        String username = userService.getCurrentUsername();
+        if (username == null) {
             UI.getCurrent().navigate("login");
             return;
         }
 
-        Order order = orderService.createOrder(user, carrito);
+        User user = userService.findByUsername(username).orElse(null);
+        if (user == null) {
+            Notification.show("No se pudo obtener el usuario", 2500, Notification.Position.MIDDLE);
+            return;
+        }
+
+        // Convertir cart (ids) -> OrderItems (entidades)
+        List<Product> all = productService.findAll();
+        List<OrderItem> items = new ArrayList<>();
+        for (var entry : cart.entrySet()) {
+            Long pid = entry.getKey();
+            int qty = entry.getValue();
+            Product p = all.stream().filter(x -> Objects.equals(x.getId(), pid)).findFirst().orElse(null);
+            if (p != null) items.add(new OrderItem(p, qty));
+        }
+
+        if (items.isEmpty()) {
+            Notification.show("No hay productos válidos en el carrito", 2500, Notification.Position.MIDDLE);
+            return;
+        }
+
+        Order order = orderService.createOrder(user, items);
         orderService.markAsPaid(order.getId());
 
-        carrito.clear();
-        refreshCart();
-        Notification.show("✅ Pago simulado completado. Pedido #" + order.getId() + " registrado.");
-        UI.getCurrent().navigate("operator/orders");
+        // vaciar carrito
+        cart.clear();
+        VaadinSession.getCurrent().setAttribute(CART_KEY, cart);
+
+        Notification.show("Pedido #" + order.getId() + " pagado y registrado.", 2500, Notification.Position.MIDDLE);
+        UI.getCurrent().navigate("client/orders");
     }
+
+    @SuppressWarnings("unchecked")
+    private Map<Long, Integer> getCart() {
+        Object o = VaadinSession.getCurrent().getAttribute(CART_KEY);
+        if (o instanceof Map<?, ?> map) {
+            try {
+                return (Map<Long, Integer>) map;
+            } catch (Exception ignored) {}
+        }
+        Map<Long, Integer> fresh = new HashMap<>();
+        VaadinSession.getCurrent().setAttribute(CART_KEY, fresh);
+        return fresh;
+    }
+
+    private record Row(Long productId, String name, int qty, double unitPrice) {}
 }

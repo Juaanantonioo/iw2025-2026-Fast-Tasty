@@ -6,7 +6,8 @@ import jakarta.persistence.*;
 @Table(name = "users") // evita choque con palabra reservada "user" en H2
 public class User {
 
-    public enum Role { ADMIN, OPERATOR, USER }
+    public enum Role { ADMIN, MANAGER, OPERATOR, COOK, DELIVERY, USER }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,7 +23,7 @@ public class User {
     @Column(nullable = false, name = "role")
     private Role role = Role.USER;
 
-    // 🔹 Nuevos campos
+    // Nuevos campos
     @Column(nullable = false, name = "telefono")
     private String telefono;
 

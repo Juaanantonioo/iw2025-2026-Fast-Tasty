@@ -38,7 +38,7 @@ public class MainLayout extends AppLayout {
         // USER: Carta + Pedido + Mis pedidos (SIN Inicio)
         if (hasRole("USER")) {
             tabs.add(new RouterLink("Carta", CartaView.class));
-            tabs.add(new RouterLink("Pedido", ClientOrderView.class));
+            tabs.add(new RouterLink("Pedido", CarritoView.class));
             tabs.add(new RouterLink("Mis pedidos", ClientOrdersView.class));
         }
 

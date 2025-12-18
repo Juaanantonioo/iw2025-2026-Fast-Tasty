@@ -2,6 +2,7 @@ package com.fastfoodmanager.service;
 
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
+import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.domain.User.Role;
 import com.fastfoodmanager.repository.OrderRepository;
@@ -31,8 +32,14 @@ public class OrderService {
     public long count() { return orderRepo.count(); }
 
     // Crear pedido: queda ENVIADO hasta que el operario lo mande a cocina
-    public Order createOrder(User user, List<OrderItem> items) {
+    public Order createOrder(User user, List<OrderItem> items, OrderType orderType, String deliveryAddress) {
         Order order = new Order(user, items);
+        order.setOrderType(orderType);
+
+        if (orderType == OrderType.DELIVERY && deliveryAddress != null) {
+            order.setDeliveryAddress(deliveryAddress);
+        }
+
         for (OrderItem item : items) item.setOrder(order);
 
         order.setStatus("ENVIADO");
@@ -48,6 +55,11 @@ public class OrderService {
 
         order.recalcTotal();
         return orderRepo.save(order);
+    }
+
+    // Sobrecarga para compatibilidad
+    public Order createOrder(User user, List<OrderItem> items) {
+        return createOrder(user, items, OrderType.PICKUP, null);
     }
 
     // Pago simulado SIN tocar el estado

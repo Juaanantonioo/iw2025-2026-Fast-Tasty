@@ -13,6 +13,15 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Tipo del pedido: recoger en local o domicilio
+    @Enumerated(EnumType.STRING)
+    @Column(name = "order_type", nullable = false)
+    private OrderType orderType = OrderType.PICKUP;
+
+    // Dirección para domicilio (opcional)
+    @Column(name = "delivery_address")
+    private String deliveryAddress;
+
     // Cliente que realiza el pedido
     @ManyToOne(optional = false)
     private User customer;
@@ -65,6 +74,12 @@ public class Order {
     }
 
     public Long getId() { return id; }
+
+    public OrderType getOrderType() { return orderType; }
+    public void setOrderType(OrderType orderType) { this.orderType = orderType; }
+
+    public String getDeliveryAddress() { return deliveryAddress; }
+    public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
 
     public User getCustomer() { return customer; }
     public void setCustomer(User customer) { this.customer = customer; }

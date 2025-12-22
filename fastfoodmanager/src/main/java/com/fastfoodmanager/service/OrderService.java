@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -45,6 +46,7 @@ public class OrderService {
         order.setStatus("ENVIADO");
         order.setAssignedTo(null);    // aún no hay operario asignado
         order.setDeliveryTo(null);    // aún no hay repartidor
+        order.setPickedUpAt(null);    // aún no recogido
 
         order.setPaid(false);
         order.setPaidAt(null);
@@ -137,7 +139,7 @@ public class OrderService {
         });
     }
 
-    // OPERARIO: LISTO -> EN REPARTO (asignando un repartidor libre)
+    // OPERARIO: LISTO -> EN REPARTO (asignando un repartidor libre) - SOLO PARA DELIVERY
     public void assignFreeDeliveryAndSend(Long orderId, String operatorUsername) {
         orderRepo.findById(orderId).ifPresent(o -> {
             if (o.getAssignedTo() == null || !operatorUsername.equals(o.getAssignedTo())) {
@@ -145,6 +147,9 @@ public class OrderService {
             }
             if (!"LISTO".equalsIgnoreCase(o.getStatus())) {
                 throw new IllegalStateException("Solo se puede asignar reparto cuando el pedido está LISTO.");
+            }
+            if (o.getOrderType() != OrderType.DELIVERY) {
+                throw new IllegalStateException("Solo los pedidos a domicilio necesitan repartidor.");
             }
 
             List<User> deliveries = userService.findByRole(Role.DELIVERY);
@@ -162,6 +167,36 @@ public class OrderService {
             o.setStatus("EN REPARTO");
             orderRepo.save(o);
         });
+    }
+
+    // OPERARIO: Marcar como RECOGIDO (para pedidos PICKUP)
+    public void markAsPickedUp(Long orderId, String operatorUsername) {
+        orderRepo.findById(orderId).ifPresent(o -> {
+            if (o.getAssignedTo() == null || !operatorUsername.equals(o.getAssignedTo())) {
+                throw new IllegalStateException("Solo el operario asignado puede gestionar este pedido.");
+            }
+            if (!"LISTO".equalsIgnoreCase(o.getStatus())) {
+                throw new IllegalStateException("Solo se puede marcar como recogido un pedido LISTO.");
+            }
+            if (o.getOrderType() != OrderType.PICKUP) {
+                throw new IllegalStateException("Solo los pedidos para recoger en local pueden marcarse como recogidos.");
+            }
+
+            o.setStatus("RECOGIDO");
+            o.setPickedUpAt(LocalDateTime.now());
+            orderRepo.save(o);
+        });
+    }
+
+    // Método para obtener pedidos LISTO que necesitan acción del operario
+    public List<Order> findReadyForOperator(String operatorUsername) {
+        // Busca pedidos LISTO que están asignados al operario
+        return orderRepo.findByAssignedToAndStatus(operatorUsername, "LISTO");
+    }
+
+    // Método para obtener pedidos LISTO por tipo
+    public List<Order> findReadyOrdersByType(OrderType orderType) {
+        return orderRepo.findByOrderTypeAndStatus(orderType, "LISTO");
     }
 
     // REPARTIDOR: EN REPARTO -> ENTREGADO
@@ -191,8 +226,8 @@ public class OrderService {
                 return;
             }
 
-            // Estados soportados
-            if (List.of("ENVIADO", "EN COCINA", "LISTO", "EN REPARTO", "ENTREGADO").contains(ns)) {
+            // Estados soportados (incluyendo RECOGIDO)
+            if (List.of("ENVIADO", "EN COCINA", "LISTO", "EN REPARTO", "ENTREGADO", "RECOGIDO").contains(ns)) {
                 o.setStatus(ns);
                 orderRepo.save(o);
                 return;

@@ -26,7 +26,7 @@ public class Order {
     @ManyToOne(optional = false)
     private User customer;
 
-    // Flujo: ENVIADO -> EN COCINA -> LISTO -> EN REPARTO -> ENTREGADO
+    // Flujo: ENVIADO -> EN COCINA -> LISTO -> [EN REPARTO -> ENTREGADO] o [RECOGIDO]
     @Column(nullable = false)
     private String status = "ENVIADO";
 
@@ -50,6 +50,9 @@ public class Order {
     private LocalDateTime cookedAt;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    // Fecha de recogida (para pedidos PICKUP)
+    private LocalDateTime pickedUpAt;
 
     private Double total = 0.0;
 
@@ -110,6 +113,9 @@ public class Order {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public LocalDateTime getPickedUpAt() { return pickedUpAt; }
+    public void setPickedUpAt(LocalDateTime pickedUpAt) { this.pickedUpAt = pickedUpAt; }
 
     public Double getTotal() { return total; }
     public void setTotal(Double total) { this.total = total; }

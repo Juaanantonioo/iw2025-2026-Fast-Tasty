@@ -40,6 +40,7 @@ public class MainLayout extends AppLayout {
             tabs.add(new RouterLink("Carta", CartaView.class));
             tabs.add(new RouterLink("Pedido", CarritoView.class));
             tabs.add(new RouterLink("Mis pedidos", ClientOrdersView.class));
+            tabs.add(new RouterLink("Perfil", ProfileView.class));
         }
 
         // OPERATOR

@@ -115,6 +115,13 @@ public class UserService {
         return "anonymousUser".equals(name) ? null : name;
     }
 
+    public void updateUser(User user) {
+        if (user.getId() == null) {
+            throw new IllegalArgumentException("El usuario debe tener ID");
+        }
+        userRepository.save(user);
+    }
+
     public void logout() {
         SecurityContextHolder.clearContext();
         try {

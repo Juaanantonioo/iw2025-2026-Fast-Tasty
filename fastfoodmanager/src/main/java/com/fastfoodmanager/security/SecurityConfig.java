@@ -36,6 +36,7 @@ public class SecurityConfig extends VaadinWebSecurity {
                 .requestMatchers("/delivery/**").hasRole("DELIVERY")
                 .requestMatchers("/operator/**").hasRole("OPERATOR")
                 .requestMatchers("/admin/**", "/products/**").hasRole("ADMIN")
+                .requestMatchers("/profile").authenticated()
         );
 
         super.configure(http);

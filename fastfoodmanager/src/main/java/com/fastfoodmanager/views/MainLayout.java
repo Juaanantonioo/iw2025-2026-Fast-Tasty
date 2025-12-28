@@ -48,6 +48,10 @@ public class MainLayout extends AppLayout {
             tabs.add(new RouterLink("Inicio", OperatorHomeView.class));
             tabs.add(new RouterLink("Pedidos", OperatorOrdersView.class));
             tabs.add(new RouterLink("Stock", OperatorStockView.class));
+
+            // NUEVO:
+            tabs.add(new RouterLink("Caja", OperatorCashView.class));
+            tabs.add(new RouterLink("Estadísticas", OperatorStatsView.class));
         }
 
         // COOK

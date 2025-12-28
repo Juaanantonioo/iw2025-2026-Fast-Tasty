@@ -1,66 +1,52 @@
 package com.fastfoodmanager.service;
 
-import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.Product;
-import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.annotation.SessionScope;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 @Service
-@VaadinSessionScope
+@SessionScope
 public class CartService {
 
-    private final List<OrderItem> items = new ArrayList<>();
+    private final List<Product> cartItems = new ArrayList<>();
 
-    public List<OrderItem> getItems() {
-        return Collections.unmodifiableList(items);
+    /** Añade 1 unidad del producto al carrito. */
+    public void addProduct(Product product) {
+        cartItems.add(product);
     }
 
-    public List<OrderItem> getItemsCopy() {
-        // Copia para crear el pedido (no devolvemos la lista interna)
-        return new ArrayList<>(items);
+    /** Elimina 1 unidad del producto del carrito (si existe). */
+    public void removeProduct(Product product) {
+        cartItems.remove(product);
     }
 
-    public void add(Product p) {
-        if (p == null || p.getId() == null) return;
-
-        for (OrderItem it : items) {
-            if (it.getProduct() != null && p.getId().equals(it.getProduct().getId())) {
-                it.setQuantity(it.getQuantity() + 1);
-                return;
-            }
-        }
-        items.add(new OrderItem(p, 1));
+    /** Devuelve una copia inmutable de la lista de items. */
+    public List<Product> getCartItems() {
+        return Collections.unmodifiableList(new ArrayList<>(cartItems));
     }
 
-    public void remove(OrderItem item) {
-        items.remove(item);
+    /** Vacía el carrito. */
+    public void clearCart() {
+        cartItems.clear();
     }
 
-    public void decrement(OrderItem item) {
-        if (item == null) return;
-        int q = item.getQuantity();
-        if (q <= 1) {
-            remove(item);
-        } else {
-            item.setQuantity(q - 1);
-        }
+    /** Número total de items (con repeticiones). */
+    public int getItemCount() {
+        return cartItems.size();
     }
 
-    public void clear() {
-        items.clear();
-    }
-
-    public double total() {
-        return items.stream()
-                .mapToDouble(i -> i.getUnitPrice() * i.getQuantity())
-                .sum();
-    }
-
-    public int countItems() {
-        return items.stream().mapToInt(OrderItem::getQuantity).sum();
+    /**
+     * Total del carrito en BigDecimal.
+     * Como Product#getPrice() devuelve Double, convertimos a BigDecimal con valueOf.
+     */
+    public BigDecimal getTotalPrice() {
+        return cartItems.stream()
+                .map(p -> BigDecimal.valueOf(p.getPrice())) // Double -> BigDecimal
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

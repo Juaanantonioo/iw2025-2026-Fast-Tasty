@@ -19,6 +19,12 @@ public class AdminSeeder {
                 admin.setUsername("admin");
                 admin.setPassword(encoder.encode("admin")); // BCrypt
                 admin.setRole(Role.ADMIN);
+
+                // Campos obligatorios (NOT NULL) en la tabla users
+                admin.setEmail("admin@fasttasty.local");
+                admin.setTelefono("000000000");
+                admin.setDireccion("N/A");
+
                 repo.save(admin);
             }
         };

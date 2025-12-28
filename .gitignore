@@ -14,3 +14,8 @@ fastfoodmanager/target/tab.launch
 .DS_Store
 
 fastfoodmanager/src/main/frontend/generated/
+
+**/node_modules/
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock

@@ -22,6 +22,15 @@
         <vaadin.version>24.8.0</vaadin.version>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>production</id>
+            <properties>
+                <vaadin.productionMode>true</vaadin.productionMode>
+            </properties>
+        </profile>
+    </profiles>
+
     <dependencies>
         <!-- Spring Boot -->
         <dependency>
@@ -115,6 +124,14 @@
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-maven-plugin</artifactId>
                 <version>${vaadin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-frontend</goal>
+                            <goal>build-frontend</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

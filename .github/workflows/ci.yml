@@ -29,10 +29,11 @@ jobs:
           cache: maven
 
       - name: Build & test
+        working-directory: fastfoodmanager
         run: mvn -B clean test
 
-      # Opcional: generar el jar (si quieres que el workflow lo guarde)
       - name: Package
+        working-directory: fastfoodmanager
         run: mvn -B -DskipTests package
 
       - name: Upload jar artifact
@@ -40,4 +41,3 @@ jobs:
         with:
           name: fastfoodmanager-jar
           path: fastfoodmanager/target/*.jar
-          if-no-files-found: error

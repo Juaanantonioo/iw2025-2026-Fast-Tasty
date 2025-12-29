@@ -11,29 +11,31 @@ public class OrderItem {
     private Long id;
 
     // Producto asociado
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
     // Pedido al que pertenece este item
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
 
     // Cantidad pedida
+    @Column(nullable = false)
     private int quantity;
 
     // Precio unitario en el momento del pedido (por si cambia en el futuro)
+    @Column(nullable = false)
     private double unitPrice;
 
-    public OrderItem() {}
+    public OrderItem() {
+    }
 
     public OrderItem(Product product, int quantity) {
         this.product = product;
         this.quantity = quantity;
-        this.unitPrice = product.getPrice();
+        this.unitPrice = (product != null && product.getPrice() != null) ? product.getPrice() : 0.0;
     }
-
-    // --- Getters y Setters ---
 
     public Long getId() {
         return id;
@@ -45,6 +47,14 @@ public class OrderItem {
 
     public void setProduct(Product product) {
         this.product = product;
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public void setOrder(Order order) {
+        this.order = order;
     }
 
     public int getQuantity() {
@@ -63,14 +73,6 @@ public class OrderItem {
         this.unitPrice = unitPrice;
     }
 
-    public Order getOrder() {
-        return order;
-    }
-
-    public void setOrder(Order order) {
-        this.order = order;
-    }
-
     // --- Métodos de utilidad ---
 
     public double getSubtotal() {
@@ -79,6 +81,7 @@ public class OrderItem {
 
     @Override
     public String toString() {
-        return product.getName() + " x" + quantity + " (" + unitPrice + "€)";
+        String name = (product != null && product.getName() != null) ? product.getName() : "Producto";
+        return name + " x" + quantity + " (" + unitPrice + "€)";
     }
 }

@@ -8,8 +8,13 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
+
+    // Pedido con items + product (para modificar/cancelar sin LazyInitialization)
+    @EntityGraph(attributePaths = {"items", "items.product"})
+    Optional<Order> findWithItemsById(Long id);
 
     List<Order> findByAssignedTo(String assignedTo);
 
@@ -42,14 +47,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatusNot(String status);
 
-    // NUEVOS MÉTODOS NECESARIOS PARA LA FUNCIONALIDAD DE TIPOS DE PEDIDO
-
-    // Para encontrar pedidos asignados a un operario con un estado específico
     List<Order> findByAssignedToAndStatus(String assignedTo, String status);
 
-    // Para encontrar pedidos por tipo y estado (ej: PICKUP y LISTO)
     List<Order> findByOrderTypeAndStatus(OrderType orderType, String status);
 
-    // Método adicional útil: buscar por tipo de pedido
     List<Order> findByOrderType(OrderType orderType);
 }

@@ -48,6 +48,12 @@ public class MyOrdersView extends VerticalLayout {
                 .setHeader("Fecha").setAutoWidth(true).setSortable(true);
         grid.addColumn(o -> o.getStatus() == null ? "-" : o.getStatus())
                 .setHeader("Estado").setAutoWidth(true);
+        grid.addColumn(o -> o.getItems() == null || o.getItems().isEmpty() ? "-" :
+                        o.getItems().stream()
+                                .map(i -> (i.getProduct() != null ? i.getProduct().getName() : "Producto") + " x" + i.getQuantity())
+                                .reduce((a, b) -> a + ", " + b)
+                                .orElse("-"))
+                .setHeader("Productos").setFlexGrow(1);
         grid.addColumn(o -> String.format("€ %.2f", o.getTotal() == null ? 0.0 : o.getTotal()))
                 .setHeader("Total").setAutoWidth(true).setSortable(true);
 
@@ -58,7 +64,7 @@ public class MyOrdersView extends VerticalLayout {
     }
 
     private void refresh() {
-        List<Order> mine = orderService.findForCurrentCustomer();
+        List<Order> mine = orderService.findForCurrentCustomerWithItems();
         grid.setItems(mine);
     }
 }

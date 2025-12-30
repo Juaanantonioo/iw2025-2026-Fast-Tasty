@@ -1,0 +1,219 @@
+.profile-view {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.profile-header {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.back-button {
+    color: #667eea;
+}
+
+.back-button:hover {
+    background-color: rgba(102, 126, 234, 0.1);
+}
+
+.profile-title {
+    color: #333;
+    font-weight: 600;
+    margin: 0;
+}
+
+.profile-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    margin: 20px;
+    overflow: hidden;
+}
+
+.profile-card.editable {
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+    border: 2px solid #667eea;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f6f8ff 0%, #f0f2ff 100%);
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.user-icon {
+    color: #667eea;
+    font-size: 24px;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-layout {
+    padding: 24px;
+}
+
+.field-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 8px 16px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    border: 1px solid #e9ecef;
+}
+
+.field-card:hover {
+    background: #f1f3f5;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.editable .field-card {
+    background: #fff;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.editable-field {
+    --vaadin-input-field-background: transparent;
+}
+
+.editable-field::part(input-field) {
+    background: transparent;
+    border-color: #667eea;
+}
+
+.button-layout {
+    padding: 16px 24px;
+    background: #f8f9fa;
+    border-top: 1px solid #e8e8e8;
+}
+
+.edit-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-weight: 500;
+}
+
+.edit-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.save-button {
+    background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-weight: 500;
+}
+
+.save-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(72, 187, 120, 0.4);
+}
+
+.cancel-button {
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-weight: 500;
+}
+
+/* Estilos para campos deshabilitados */
+[readonly] {
+    --vaadin-input-field-background: transparent;
+}
+
+[readonly]::part(input-field) {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .profile-card {
+        width: 95%;
+        margin: 10px;
+    }
+
+    .button-layout {
+        flex-direction: column;
+    }
+
+    .edit-button,
+    .save-button,
+    .cancel-button {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+}
+
+/* Estilos para campos en modo solo lectura */
+.readonly-field::part(input-field) {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.readonly-field::part(input) {
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Estilos para campos editables */
+.editable-field::part(input-field) {
+    background-color: #fff;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.editable-field::part(input) {
+    color: #495057;
+}
+
+/* Indicador visual para campos requeridos */
+[required]::after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Estilos para campos inválidos */
+[invalid]::part(input-field) {
+    border-color: #dc3545;
+    background-color: #fff5f5;
+}
+
+[invalid]::part(input) {
+    color: #dc3545;
+}
+
+/* Botón guardar deshabilitado */
+.save-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #6c757d !important;
+}
+
+/* Estilos específicos para el campo de teléfono */
+[placeholder="612345678"]::part(input) {
+    font-family: monospace;
+    letter-spacing: 1px;
+}
+
+/* Helper text más visible */
+::part(helper-text) {
+    font-size: 0.85rem;
+    color: #6c757d;
+}

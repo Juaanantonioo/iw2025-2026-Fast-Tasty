@@ -165,6 +165,64 @@ public class OrderService {
     }
 
     // =========
+    // Métodos para repartidores - cargan todo en una transacción
+    // =========
+
+    /**
+     * Método para repartidores - carga pedido con customer, items y products
+     * TODO en una transacción para evitar LazyInitializationException
+     */
+    @Transactional(readOnly = true)
+    public Order findDeliveryOrderWithDetails(Long orderId, String deliveryUsername) {
+        Order order = orderRepo.findWithItemsById(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado: " + orderId));
+
+        // Verificar que el pedido está asignado a este repartidor
+        if (order.getDeliveryTo() == null || !deliveryUsername.equals(order.getDeliveryTo())) {
+            throw new SecurityException("Este pedido no está asignado a ti");
+        }
+
+        // Forzar la inicialización del cliente para evitar LazyInitialization
+        if (order.getCustomer() != null) {
+            // Esto inicializa el proxy
+            order.getCustomer().getUsername();
+        }
+
+        // Forzar inicialización de items y productos
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                if (item.getProduct() != null) {
+                    item.getProduct().getName(); // Inicializa el producto
+                }
+            }
+        }
+
+        return order;
+    }
+
+    /**
+     * Método para cargar todos los pedidos del repartidor con detalles
+     * TODO en una transacción para evitar LazyInitializationException
+     */
+    @Transactional(readOnly = true)
+    public List<Order> findForDeliveryWithDetails(String deliveryUsername) {
+        List<Order> orders = orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
+
+        // Inicializar relaciones para cada pedido
+        for (Order order : orders) {
+            if (order.getCustomer() != null) {
+                order.getCustomer().getUsername(); // Inicializa cliente
+            }
+
+            // Cargar items y productos usando una consulta separada
+            Order fullOrder = orderRepo.findWithItemsById(order.getId()).orElse(order);
+            order.setItems(fullOrder.getItems());
+        }
+
+        return orders;
+    }
+
+    // =========
     // Cliente: reglas de edición
     // =========
     private Order requireCustomerOrderEditable(Long orderId, String customerUsername) {

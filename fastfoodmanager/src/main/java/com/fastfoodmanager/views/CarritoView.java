@@ -9,6 +9,7 @@ import com.fastfoodmanager.service.OrderService;
 import com.fastfoodmanager.service.UserService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
@@ -137,11 +138,45 @@ public class CarritoView extends VerticalLayout {
         Paragraph info = new Paragraph("Selecciona una opción para continuar con el pago");
         info.getStyle().set("color", "#7f8c8d");
 
+        // CHECKBOX PARA ENVÍO DE EMAIL
+        Checkbox emailCheckbox = new Checkbox("📧 Enviar ticket al correo electrónico");
+        emailCheckbox.setValue(true); // Marcado por defecto
+        emailCheckbox.getStyle().set("margin", "15px 0");
+
+        // CORRECCIÓN: No usar info.add() ni emailCheckbox.add()
+        // Crear un layout para mostrar la información del email
+        VerticalLayout emailInfoLayout = new VerticalLayout();
+        emailInfoLayout.setSpacing(false);
+        emailInfoLayout.setPadding(false);
+        emailInfoLayout.setMargin(false);
+
+        // Verificar si el usuario tiene email registrado
+        if (user.getEmail() == null || user.getEmail().isEmpty()) {
+            emailCheckbox.setEnabled(false);
+            emailCheckbox.setLabel("📧 Enviar ticket al correo (no tienes email registrado)");
+
+            Span warning = new Span("⚠️ Para recibir el ticket por email, actualiza tu perfil con tu dirección de correo.");
+            warning.getStyle()
+                    .set("color", "orange")
+                    .set("font-size", "12px")
+                    .set("margin-top", "5px");
+
+            emailInfoLayout.add(emailCheckbox, warning);
+        } else {
+            Span emailInfo = new Span("Se enviará a: " + user.getEmail());
+            emailInfo.getStyle()
+                    .set("color", "#0070ba")
+                    .set("font-size", "12px")
+                    .set("margin-top", "5px");
+
+            emailInfoLayout.add(emailCheckbox, emailInfo);
+        }
+
         // Botón para recoger en local
         Button pickupBtn = new Button("🏪 Recoger en local", e -> {
             System.out.println("DEBUG: Pickup seleccionado");
             dialog.close();
-            processPayment(user, OrderType.PICKUP, null);
+            processPayment(user, OrderType.PICKUP, null, emailCheckbox.getValue());
         });
         pickupBtn.getStyle()
                 .set("background-color", "#0070ba")
@@ -156,7 +191,7 @@ public class CarritoView extends VerticalLayout {
         Button deliveryBtn = new Button("🚚 A domicilio", e -> {
             System.out.println("DEBUG: Delivery seleccionado");
             dialog.close();
-            showAddressDialog(user);
+            showAddressDialog(user, emailCheckbox.getValue());
         });
         deliveryBtn.getStyle()
                 .set("background-color", "#28a745")
@@ -172,8 +207,8 @@ public class CarritoView extends VerticalLayout {
         buttonsLayout.setSpacing(true);
         buttonsLayout.setJustifyContentMode(JustifyContentMode.CENTER);
 
-        // Layout principal
-        VerticalLayout layout = new VerticalLayout(title, info, buttonsLayout);
+        // Layout principal - CORREGIDO: usar emailInfoLayout en lugar de emailCheckbox solo
+        VerticalLayout layout = new VerticalLayout(title, info, emailInfoLayout, buttonsLayout);
         layout.setAlignItems(Alignment.CENTER);
         layout.setSpacing(true);
         layout.setPadding(true);
@@ -183,8 +218,8 @@ public class CarritoView extends VerticalLayout {
         dialog.open();
     }
 
-    private void showAddressDialog(User user) {
-        System.out.println("DEBUG: showAddressDialog llamado");
+    private void showAddressDialog(User user, boolean enviarEmail) {
+        System.out.println("DEBUG: showAddressDialog llamado - Enviar email: " + enviarEmail);
 
         Dialog dialog = new Dialog();
         dialog.setModal(true);
@@ -268,7 +303,7 @@ public class CarritoView extends VerticalLayout {
             System.out.println("DEBUG: Dirección completa: " + address);
 
             dialog.close();
-            processPayment(user, OrderType.DELIVERY, address);
+            processPayment(user, OrderType.DELIVERY, address, enviarEmail);
         });
         confirmBtn.getStyle()
                 .set("background-color", "#28a745")
@@ -280,7 +315,7 @@ public class CarritoView extends VerticalLayout {
         Button cancelBtn = new Button("↩️ Cambiar a recoger en local", e -> {
             System.out.println("DEBUG: Cambiando a recoger en local");
             dialog.close();
-            processPayment(user, OrderType.PICKUP, null);
+            processPayment(user, OrderType.PICKUP, null, enviarEmail);
         });
         cancelBtn.getStyle()
                 .set("background-color", "#6c757d")
@@ -307,12 +342,14 @@ public class CarritoView extends VerticalLayout {
         dialog.open();
     }
 
-    private void processPayment(User user, OrderType orderType, String deliveryAddress) {
-        System.out.println("DEBUG: processPayment llamado - Tipo: " + orderType + ", Dirección: " + deliveryAddress);
+    private void processPayment(User user, OrderType orderType, String deliveryAddress, boolean enviarEmail) {
+        System.out.println("DEBUG: processPayment llamado - Tipo: " + orderType +
+                ", Dirección: " + deliveryAddress +
+                ", Enviar email: " + enviarEmail);
 
         try {
             // Crear pedido con el tipo y dirección
-            Order order = orderService.createOrder(user, cartService.getItemsCopy(), orderType, deliveryAddress);
+            Order order = orderService.createOrder(user, cartService.getItemsCopy(), orderType, deliveryAddress, enviarEmail);
             orderService.markAsPaid(order.getId());
 
             cartService.clear();
@@ -320,6 +357,13 @@ public class CarritoView extends VerticalLayout {
 
             // Mostrar mensaje según el tipo de pedido
             String message = "✅ Pedido #" + order.getId() + " creado y pagado exitosamente. ";
+
+            if (enviarEmail && user.getEmail() != null && !user.getEmail().isEmpty()) {
+                message += "Se ha enviado el ticket a " + user.getEmail() + ". ";
+            } else if (enviarEmail) {
+                message += "No se pudo enviar el ticket por email (no hay email registrado). ";
+            }
+
             if (orderType == OrderType.PICKUP) {
                 message += "Podrás recogerlo en nuestro local en aproximadamente 20-30 minutos.";
             } else {

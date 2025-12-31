@@ -6,6 +6,8 @@ import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.domain.User.Role;
 import com.fastfoodmanager.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -17,22 +19,40 @@ import java.util.*;
 @Service
 public class OrderService {
 
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
     private final OrderRepository orderRepo;
     private final UserService userService;
+    private final EmailService emailService;
 
-    public OrderService(OrderRepository orderRepo, UserService userService) {
+    public OrderService(OrderRepository orderRepo, UserService userService, EmailService emailService) {
         this.orderRepo = orderRepo;
         this.userService = userService;
+        this.emailService = emailService;
     }
 
     // =========
     // CRUD
     // =========
-    public List<Order> findAll() { return orderRepo.findAll(); }
-    public Optional<Order> findById(Long id) { return orderRepo.findById(id); }
-    public Order save(Order order) { return orderRepo.save(order); }
-    public void delete(Long id) { orderRepo.deleteById(id); }
-    public long count() { return orderRepo.count(); }
+    public List<Order> findAll() {
+        return orderRepo.findAll();
+    }
+
+    public Optional<Order> findById(Long id) {
+        return orderRepo.findById(id);
+    }
+
+    public Order save(Order order) {
+        return orderRepo.save(order);
+    }
+
+    public void delete(Long id) {
+        orderRepo.deleteById(id);
+    }
+
+    public long count() {
+        return orderRepo.count();
+    }
 
     // =========
     // Auth helper
@@ -48,7 +68,7 @@ public class OrderService {
     // Crear pedido
     // =========
     @Transactional
-    public Order createOrder(User user, List<OrderItem> items, OrderType orderType, String deliveryAddress) {
+    public Order createOrder(User user, List<OrderItem> items, OrderType orderType, String deliveryAddress, boolean enviarEmail) {
         Order order = new Order(user, items);
         order.setOrderType(orderType);
 
@@ -76,11 +96,32 @@ public class OrderService {
         order.setCookedBy(null);
 
         order.recalcTotal();
-        return orderRepo.save(order);
+
+        // IMPORTANTE: Guardar primero el pedido para obtener el ID
+        order = orderRepo.save(order);
+        log.info("Pedido #{} creado exitosamente", order.getId());
+
+        // Enviar email si está solicitado
+        if (enviarEmail && user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
+            try {
+                emailService.enviarTicketPedido(order, user.getEmail());
+                log.info("Ticket enviado por email para el pedido #{}", order.getId());
+            } catch (Exception e) {
+                // Loggear error pero no fallar el pedido
+                log.error("Error al enviar email del pedido #{}: {}", order.getId(), e.getMessage());
+            }
+        }
+
+        return order;
+    }
+
+    @Transactional
+    public Order createOrder(User user, List<OrderItem> items, OrderType orderType, String deliveryAddress) {
+        return createOrder(user, items, orderType, deliveryAddress, false);
     }
 
     public Order createOrder(User user, List<OrderItem> items) {
-        return createOrder(user, items, OrderType.PICKUP, null);
+        return createOrder(user, items, OrderType.PICKUP, null, false);
     }
 
     // =========

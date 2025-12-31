@@ -1,6 +1,6 @@
 package com.fastfoodmanager.views;
 
-import com.fastfoodmanager.services.BookingService;
+import com.fastfoodmanager.service.BookingService;
 import com.fastfoodmanager.models.Booking;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;

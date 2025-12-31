@@ -1,5 +1,8 @@
-package com.fastfoodmanager.services;
+package com.fastfoodmanager.service;
 
+import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.domain.OrderItem;
+import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.models.Booking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,23 +10,30 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
 @Service
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
     private final JavaMailSender mailSender;
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
         log.info("EmailService inicializado. MailSender: {}", (mailSender != null ? "OK" : "NULL"));
     }
 
+    // ========= MÉTODOS PARA RESERVAS =========
+
     public void enviarConfirmacionReserva(Booking reserva) {
-        log.info("=== INTENTANDO ENVIAR EMAIL ===");
+        log.info("=== INTENTANDO ENVIAR EMAIL DE RESERVA ===");
         log.info("Destinatario: {}", reserva.getEmail());
 
         try {
-            // Verificar que el email no esté vacío
             if (reserva.getEmail() == null || reserva.getEmail().trim().isEmpty()) {
                 throw new IllegalArgumentException("Email del destinatario está vacío");
             }
@@ -31,25 +41,23 @@ public class EmailService {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(reserva.getEmail().trim());
             message.setSubject("Confirmación de Reserva - FastTasty");
-            message.setText(construirContenidoEmail(reserva));
+            message.setText(construirContenidoEmailReserva(reserva));
             message.setFrom("noreply@fasttasty.com");
 
-            log.debug("Configuración email:");
+            log.debug("Configuración email de reserva:");
             log.debug("- To: {}", message.getTo());
             log.debug("- Subject: {}", message.getSubject());
             log.debug("- From: {}", message.getFrom());
 
-            // INTENTAR ENVIAR
-            log.info("Enviando email...");
+            log.info("Enviando email de reserva...");
             mailSender.send(message);
-            log.info("✅ EMAIL ENVIADO EXITOSAMENTE a {}", reserva.getEmail());
+            log.info("✅ EMAIL DE RESERVA ENVIADO EXITOSAMENTE a {}", reserva.getEmail());
 
         } catch (Exception e) {
-            log.error("❌ FALLO AL ENVIAR EMAIL:");
+            log.error("❌ FALLO AL ENVIAR EMAIL DE RESERVA:");
             log.error("Error: {}", e.getClass().getName());
             log.error("Mensaje: {}", e.getMessage());
 
-            // Mostrar más detalles para Gmail específicamente
             if (e.getMessage().contains("535")) {
                 log.error("PROBLEMA: Credenciales incorrectas de Gmail");
                 log.error("SOLUCIÓN: Usa contraseña de aplicación, no tu contraseña normal");
@@ -58,11 +66,11 @@ public class EmailService {
                 log.error("SOLUCIÓN: Verifica firewall/antivirus. Prueba puerto 465");
             }
 
-            throw new RuntimeException("Error al enviar email: " + e.getMessage(), e);
+            throw new RuntimeException("Error al enviar email de reserva: " + e.getMessage(), e);
         }
     }
 
-    private String construirContenidoEmail(Booking reserva) {
+    private String construirContenidoEmailReserva(Booking reserva) {
         StringBuilder contenido = new StringBuilder();
 
         contenido.append("¡Hola ").append(reserva.getNombre()).append("!\n\n");
@@ -87,6 +95,109 @@ public class EmailService {
 
         contenido.append("¡Esperamos verte pronto!\n");
         contenido.append("El equipo de FastTasty 🍔");
+
+        return contenido.toString();
+    }
+
+    // ========= MÉTODOS PARA PEDIDOS =========
+
+    public void enviarTicketPedido(Order pedido, String emailDestinatario) {
+        log.info("=== INTENTANDO ENVIAR EMAIL DE PEDIDO ===");
+        log.info("Enviando ticket del pedido #{} a {}", pedido.getId(), emailDestinatario);
+
+        try {
+            if (emailDestinatario == null || emailDestinatario.trim().isEmpty()) {
+                throw new IllegalArgumentException("Email del destinatario está vacío");
+            }
+
+            // Validar que el pedido tenga ID (esté guardado en BD)
+            if (pedido.getId() == null) {
+                log.warn("⚠️ El pedido aún no tiene ID asignado (no se ha guardado en BD). No se enviará email.");
+                return;
+            }
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(emailDestinatario.trim());
+            message.setSubject("Ticket de Pedido #" + pedido.getId() + " - FastTasty");
+            message.setText(construirContenidoTicketPedido(pedido));
+            message.setFrom("noreply@fasttasty.com");
+
+            log.debug("Configuración email de pedido:");
+            log.debug("- To: {}", message.getTo());
+            log.debug("- Subject: {}", message.getSubject());
+            log.debug("- From: {}", message.getFrom());
+
+            mailSender.send(message);
+            log.info("✅ EMAIL DE PEDIDO ENVIADO EXITOSAMENTE a {}", emailDestinatario);
+
+        } catch (Exception e) {
+            log.error("❌ FALLO AL ENVIAR EMAIL DE PEDIDO:");
+            log.error("Error: {}", e.getClass().getName());
+            log.error("Mensaje: {}", e.getMessage());
+            throw new RuntimeException("Error al enviar ticket por email: " + e.getMessage(), e);
+        }
+    }
+
+    private String construirContenidoTicketPedido(Order pedido) {
+        StringBuilder contenido = new StringBuilder();
+
+        contenido.append("=".repeat(50)).append("\n");
+        contenido.append("              FASTTASTY - TICKET DE PEDIDO\n");
+        contenido.append("=".repeat(50)).append("\n\n");
+
+        contenido.append("NÚMERO DE PEDIDO: ").append(pedido.getId()).append("\n");
+
+        // CORRECCIÓN: Usar LocalDateTime en lugar de Date
+        LocalDateTime fechaCreacion = pedido.getCreatedAt();
+        if (fechaCreacion != null) {
+            contenido.append("FECHA Y HORA: ").append(fechaCreacion.format(DATE_FORMATTER)).append("\n");
+        } else {
+            contenido.append("FECHA Y HORA: ").append(LocalDateTime.now().format(DATE_FORMATTER)).append("\n");
+        }
+
+        contenido.append("CLIENTE: ").append(pedido.getCustomer().getUsername()).append("\n");
+        contenido.append("EMAIL: ").append(pedido.getCustomer().getEmail()).append("\n");
+        contenido.append("TIPO DE PEDIDO: ").append(pedido.getOrderType() == OrderType.PICKUP ? "RECOGER EN LOCAL" : "A DOMICILIO").append("\n");
+
+        if (pedido.getDeliveryAddress() != null && !pedido.getDeliveryAddress().isEmpty()) {
+            contenido.append("DIRECCIÓN DE ENTREGA: ").append(pedido.getDeliveryAddress()).append("\n");
+        }
+
+        contenido.append("\n");
+        contenido.append("-".repeat(50)).append("\n");
+        contenido.append("DETALLE DEL PEDIDO:\n");
+        contenido.append("-".repeat(50)).append("\n");
+
+        List<OrderItem> items = pedido.getItems();
+        for (OrderItem item : items) {
+            contenido.append(String.format("%-30s %3d x €%7.2f = €%7.2f%n",
+                    item.getProduct().getName(),
+                    item.getQuantity(),
+                    item.getUnitPrice(),
+                    item.getSubtotal()));
+        }
+
+        contenido.append("-".repeat(50)).append("\n");
+        contenido.append(String.format("SUBTOTAL: €%.2f%n", pedido.getTotal()));
+        contenido.append(String.format("IVA (10%%): €%.2f%n", pedido.getTotal() * 0.10));
+        contenido.append(String.format("TOTAL: €%.2f%n", pedido.getTotal() * 1.10));
+        contenido.append("=".repeat(50)).append("\n\n");
+
+        contenido.append("INFORMACIÓN IMPORTANTE:\n");
+        contenido.append("-".repeat(50)).append("\n");
+
+        if (pedido.getOrderType() == OrderType.PICKUP) {
+            contenido.append("🕒 Tu pedido estará listo en aproximadamente 20-30 minutos.\n");
+            contenido.append("📍 Dirección del local: Calle Comida Rápida 123, Madrid\n");
+            contenido.append("📞 Teléfono: +34 91 123 45 67\n");
+        } else {
+            contenido.append("🕒 Tu pedido será entregado en aproximadamente 40-50 minutos.\n");
+            contenido.append("📞 Si necesitas contactar con el repartidor: +34 91 987 65 43\n");
+        }
+
+        contenido.append("\n");
+        contenido.append("¡Gracias por confiar en FastTasty!\n");
+        contenido.append("Este es un ticket generado automáticamente.\n");
 
         return contenido.toString();
     }

@@ -1,4 +1,4 @@
-package com.fastfoodmanager.services;
+package com.fastfoodmanager.service;
 
 import com.fastfoodmanager.models.Booking;
 import org.springframework.stereotype.Service;

@@ -3,9 +3,11 @@ package com.fastfoodmanager.service;
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.OrderType;
+import com.fastfoodmanager.domain.Product;
 import com.fastfoodmanager.domain.User;
 import com.fastfoodmanager.domain.User.Role;
 import com.fastfoodmanager.repository.OrderRepository;
+import com.fastfoodmanager.repository.ProductRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -15,44 +17,41 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
+
 
 @Service
 public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
+    private final ProductRepository productRepo;
     private final OrderRepository orderRepo;
     private final UserService userService;
     private final EmailService emailService;
 
-    public OrderService(OrderRepository orderRepo, UserService userService, EmailService emailService) {
+    public OrderService(OrderRepository orderRepo,
+                        UserService userService,
+                        EmailService emailService,
+                        ProductRepository productRepo) {
         this.orderRepo = orderRepo;
         this.userService = userService;
         this.emailService = emailService;
+        this.productRepo = productRepo;
     }
 
     // =========
     // CRUD
     // =========
-    public List<Order> findAll() {
-        return orderRepo.findAll();
-    }
+    public List<Order> findAll() { return orderRepo.findAll(); }
 
-    public Optional<Order> findById(Long id) {
-        return orderRepo.findById(id);
-    }
+    public Optional<Order> findById(Long id) { return orderRepo.findById(id); }
 
-    public Order save(Order order) {
-        return orderRepo.save(order);
-    }
+    public Order save(Order order) { return orderRepo.save(order); }
 
-    public void delete(Long id) {
-        orderRepo.deleteById(id);
-    }
+    public void delete(Long id) { orderRepo.deleteById(id); }
 
-    public long count() {
-        return orderRepo.count();
-    }
+    public long count() { return orderRepo.count(); }
 
     // =========
     // Auth helper
@@ -68,7 +67,12 @@ public class OrderService {
     // Crear pedido
     // =========
     @Transactional
-    public Order createOrder(User user, List<OrderItem> items, OrderType orderType, String deliveryAddress, boolean enviarEmail) {
+    public Order createOrder(User user,
+                             List<OrderItem> items,
+                             OrderType orderType,
+                             String deliveryAddress,
+                             boolean enviarEmail) {
+
         Order order = new Order(user, items);
         order.setOrderType(orderType);
 
@@ -97,17 +101,16 @@ public class OrderService {
 
         order.recalcTotal();
 
-        // IMPORTANTE: Guardar primero el pedido para obtener el ID
+        // Guardar primero para tener ID
         order = orderRepo.save(order);
         log.info("Pedido #{} creado exitosamente", order.getId());
 
-        // Enviar email si está solicitado
+        // Enviar email si está solicitado (no se guarda en Order, solo se ejecuta)
         if (enviarEmail && user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
             try {
                 emailService.enviarTicketPedido(order, user.getEmail());
                 log.info("Ticket enviado por email para el pedido #{}", order.getId());
             } catch (Exception e) {
-                // Loggear error pero no fallar el pedido
                 log.error("Error al enviar email del pedido #{}: {}", order.getId(), e.getMessage());
             }
         }
@@ -148,7 +151,6 @@ public class OrderService {
         return (username == null) ? List.of() : findForCustomer(username);
     }
 
-    // Cargar pedidos del cliente con items+product
     public List<Order> findForCurrentCustomerWithItems() {
         String username = currentUsername();
         if (username == null) return List.of();
@@ -165,68 +167,9 @@ public class OrderService {
     }
 
     // =========
-    // Métodos para repartidores - cargan todo en una transacción
-    // =========
-
-    /**
-     * Método para repartidores - carga pedido con customer, items y products
-     * TODO en una transacción para evitar LazyInitializationException
-     */
-    @Transactional(readOnly = true)
-    public Order findDeliveryOrderWithDetails(Long orderId, String deliveryUsername) {
-        Order order = orderRepo.findWithItemsById(orderId)
-                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado: " + orderId));
-
-        // Verificar que el pedido está asignado a este repartidor
-        if (order.getDeliveryTo() == null || !deliveryUsername.equals(order.getDeliveryTo())) {
-            throw new SecurityException("Este pedido no está asignado a ti");
-        }
-
-        // Forzar la inicialización del cliente para evitar LazyInitialization
-        if (order.getCustomer() != null) {
-            // Esto inicializa el proxy
-            order.getCustomer().getUsername();
-        }
-
-        // Forzar inicialización de items y productos
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                if (item.getProduct() != null) {
-                    item.getProduct().getName(); // Inicializa el producto
-                }
-            }
-        }
-
-        return order;
-    }
-
-    /**
-     * Método para cargar todos los pedidos del repartidor con detalles
-     * TODO en una transacción para evitar LazyInitializationException
-     */
-    @Transactional(readOnly = true)
-    public List<Order> findForDeliveryWithDetails(String deliveryUsername) {
-        List<Order> orders = orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
-
-        // Inicializar relaciones para cada pedido
-        for (Order order : orders) {
-            if (order.getCustomer() != null) {
-                order.getCustomer().getUsername(); // Inicializa cliente
-            }
-
-            // Cargar items y productos usando una consulta separada
-            Order fullOrder = orderRepo.findWithItemsById(order.getId()).orElse(order);
-            order.setItems(fullOrder.getItems());
-        }
-
-        return orders;
-    }
-
-    // =========
     // Cliente: reglas de edición
     // =========
     private Order requireCustomerOrderEditable(Long orderId, String customerUsername) {
-        // IMPORTANTE: lo cargamos con items+product para poder modificar sin LazyInitialization
         Order o = orderRepo.findWithItemsById(orderId)
                 .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado."));
 
@@ -256,22 +199,15 @@ public class OrderService {
 
         Order o = requireCustomerOrderEditable(orderId, username);
 
-        // Recomendado: NO borrar; marcar cancelado
         o.setStatus("CANCELADO");
-
-        // Limpieza opcional para que no aparezca en bandejas
         o.setAssignedTo(null);
         o.setDeliveryTo(null);
-
-        // Si quieres "simular devolución", puedes descomentar:
-        // o.setPaid(false);
-        // o.setPaidAt(null);
 
         orderRepo.save(o);
     }
 
     // =========
-    // Cliente: modificar cantidades antes de cocina (SIN quitar el pagado)
+    // Cliente: modificar cantidades y permitir añadir/quitar productos antes de cocina
     // =========
     @Transactional
     public void updatePaidOrderItemsBeforeKitchen(Long orderId, Map<Long, Integer> productIdToQty) {
@@ -285,33 +221,53 @@ public class OrderService {
         Order o = requireCustomerOrderEditable(orderId, username);
 
         if (o.getItems() == null) {
-            throw new IllegalStateException("El pedido no tiene items.");
+            o.setItems(new ArrayList<>());
         }
 
-        // Ajustar cantidades / eliminar líneas con qty <= 0
+        // IDs actuales en el pedido
+        Set<Long> currentProductIds = o.getItems().stream()
+                .map(item -> item.getProduct() != null ? item.getProduct().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // 1) Actualizar cantidades / eliminar líneas existentes
         Iterator<OrderItem> it = o.getItems().iterator();
         while (it.hasNext()) {
             OrderItem item = it.next();
             Long pid = (item.getProduct() != null) ? item.getProduct().getId() : null;
             if (pid == null) continue;
 
-            if (!productIdToQty.containsKey(pid)) continue;
-
-            Integer newQty = productIdToQty.get(pid);
-            if (newQty == null || newQty <= 0) {
-                it.remove();
-            } else {
-                item.setQuantity(newQty);
+            if (productIdToQty.containsKey(pid)) {
+                Integer newQty = productIdToQty.get(pid);
+                if (newQty == null || newQty <= 0) {
+                    it.remove();
+                } else {
+                    item.setQuantity(newQty);
+                }
             }
         }
 
-        // Asegurar bidireccionalidad
-        o.getItems().forEach(i -> i.setOrder(o));
+        // 2) Añadir nuevos productos (que no estaban)
+        for (Map.Entry<Long, Integer> entry : productIdToQty.entrySet()) {
+            Long productId = entry.getKey();
+            Integer qty = entry.getValue();
 
-        // Recalcular total
+            if (qty != null && qty > 0 && !currentProductIds.contains(productId)) {
+                Product product = productRepo.findById(productId)
+                        .orElseThrow(() -> new NoSuchElementException("Producto no encontrado: " + productId));
+
+                // Usa el constructor para fijar unitPrice = product.getPrice()
+                OrderItem newItem = new OrderItem(product, qty);
+                newItem.setOrder(o);
+                o.getItems().add(newItem);
+            }
+        }
+
+        // Asegurar bidireccionalidad y recalcular total
+        o.getItems().forEach(i -> i.setOrder(o));
         o.recalcTotal();
 
-        // CLAVE: NO tocamos paid aquí, para que puedas modificar varias veces mientras esté ENVIADO.
+        // Importante: NO tocamos paid aquí (así no te sale el mensaje de "NO pagado" por este motivo)
         orderRepo.save(o);
     }
 
@@ -327,7 +283,65 @@ public class OrderService {
         for (Order o : mine) map.put(o.getId(), o);
         return new ArrayList<>(map.values());
     }
+    // =========
+// Productos activos para el diálogo de edición (ClientOrdersView)
+// =========
+    @Transactional(readOnly = true)
+    public List<Product> findActiveProductsForEdit() {
+        // Opción simple: filtrar por active=true
+        // (si luego quieres además filtrar por stock>0, te lo ajusto)
+        return productRepo.findAll().stream()
+                .filter(Product::isActive)
+                .collect(Collectors.toList());
+    }
 
+    // =========
+// Repartidor - cargar pedidos con detalles para evitar LazyInitialization
+// =========
+    @Transactional(readOnly = true)
+    public List<Order> findForDeliveryWithDetails(String deliveryUsername) {
+        List<Order> orders = orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
+
+        // Para cada pedido, reemplazamos items por la versión con fetch (items+product)
+        for (Order o : orders) {
+            Order full = orderRepo.findWithItemsById(o.getId()).orElse(o);
+
+            // Seteamos items ya inicializados
+            o.setItems(full.getItems());
+
+            // Forzamos inicialización del customer por seguridad
+            if (o.getCustomer() != null) {
+                o.getCustomer().getUsername();
+            }
+        }
+        return orders;
+    }
+
+    @Transactional(readOnly = true)
+    public Order findDeliveryOrderWithDetails(Long orderId, String deliveryUsername) {
+        Order order = orderRepo.findWithItemsById(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado: " + orderId));
+
+        if (order.getDeliveryTo() == null || !deliveryUsername.equals(order.getDeliveryTo())) {
+            throw new SecurityException("Este pedido no está asignado a ti");
+        }
+
+        // Forzar init de customer
+        if (order.getCustomer() != null) {
+            order.getCustomer().getUsername();
+        }
+
+        // Forzar init de productos por seguridad
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                if (item.getProduct() != null) {
+                    item.getProduct().getName();
+                }
+            }
+        }
+
+        return order;
+    }
     @Transactional
     public void sendToKitchen(Long orderId, String operatorUsername) {
         orderRepo.findById(orderId).ifPresent(o -> {

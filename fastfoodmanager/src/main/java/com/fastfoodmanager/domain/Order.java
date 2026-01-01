@@ -17,6 +17,9 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
     private OrderType orderType = OrderType.PICKUP;
+    // Enviar email de confirmación
+    @Column(name = "send_email", nullable = false)
+    private boolean sendEmail = false;
 
     // Dirección para domicilio (opcional)
     @Column(name = "delivery_address")
@@ -69,10 +72,14 @@ public class Order {
         }
         recalcTotal();
     }
-
+    // Recalcula el total del pedido
     public void recalcTotal() {
-        this.total = items.stream()
-                .mapToDouble(i -> i.getUnitPrice() * i.getQuantity())
+        if (this.items == null || this.items.isEmpty()) {
+            this.total = 0.0;
+            return;
+        }
+        this.total = this.items.stream()
+                .mapToDouble(OrderItem::getSubtotal)
                 .sum();
     }
 
@@ -126,4 +133,5 @@ public class Order {
         this.items.forEach(i -> i.setOrder(this));
         recalcTotal();
     }
+
 }

@@ -2,17 +2,19 @@ package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
+import com.fastfoodmanager.domain.Product;
 import com.fastfoodmanager.service.OrderService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
@@ -65,9 +67,9 @@ public class ClientOrdersView extends VerticalLayout {
             Button cancelar = new Button("Cancelar");
 
             boolean editable = o != null
+                    && o.isPaid()
                     && o.getStatus() != null
-                    && "ENVIADO".equalsIgnoreCase(o.getStatus())
-                    && !"CANCELADO".equalsIgnoreCase(o.getStatus());
+                    && "ENVIADO".equalsIgnoreCase(o.getStatus());
 
             modificar.setEnabled(editable);
             cancelar.setEnabled(editable);
@@ -75,9 +77,7 @@ public class ClientOrdersView extends VerticalLayout {
             modificar.addClickListener(e -> openModifyDialog(o));
             cancelar.addClickListener(e -> confirmCancel(o));
 
-            HorizontalLayout hl = new HorizontalLayout(modificar, cancelar);
-            hl.setSpacing(true);
-            return hl;
+            return new HorizontalLayout(modificar, cancelar);
         }).setHeader("Acciones").setAutoWidth(true);
 
         add(top, grid);
@@ -105,24 +105,24 @@ public class ClientOrdersView extends VerticalLayout {
 
         ConfirmDialog cd = new ConfirmDialog();
         cd.setHeader("Cancelar pedido #" + o.getId());
-        cd.setText("Solo puedes cancelar si está ENVIADO y ya pagado. Si cancelas, se simulará la devolución del pago.");
+        cd.setText("Solo puedes cancelar si está ENVIADO y pagado.");
         cd.setCancelable(true);
         cd.setConfirmText("Cancelar pedido");
 
         cd.addConfirmListener(ev -> {
             try {
                 orderService.cancelPaidOrderBeforeKitchen(o.getId());
-                Notification.show("Pedido cancelado");
+                Notification.show("Pedido cancelado", 2500, Notification.Position.BOTTOM_START);
                 refresh();
             } catch (Exception ex) {
-                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo cancelar");
+                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo cancelar",
+                        3500, Notification.Position.BOTTOM_START);
             }
         });
 
         cd.open();
     }
 
-    // Diálogo para modificar cantidades de un pedido pagado antes de cocina
     private void openModifyDialog(Order o) {
         if (o == null) return;
 
@@ -130,15 +130,16 @@ public class ClientOrdersView extends VerticalLayout {
         try {
             fresh = orderService.findWithItemsOrThrow(o.getId());
         } catch (Exception ex) {
-            Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo cargar el pedido");
+            Notification.show("No se pudo cargar el pedido", 3000, Notification.Position.BOTTOM_START);
             return;
         }
 
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Modificar pedido #" + o.getId());
 
+        // Form con líneas actuales
         FormLayout form = new FormLayout();
-        form.setWidth("600px");
+        form.setWidth("650px");
 
         Map<Long, IntegerField> fields = new LinkedHashMap<>();
 
@@ -159,6 +160,58 @@ public class ClientOrdersView extends VerticalLayout {
             }
         }
 
+        // Sección para añadir productos
+        ComboBox<Product> productBox = new ComboBox<>("Añadir producto");
+        productBox.setWidthFull();
+        productBox.setItemLabelGenerator(p -> p.getName() + " (€ " + String.format("%.2f", p.getPrice()) + ")");
+
+        List<Product> active = orderService.findActiveProductsForEdit();
+        productBox.setItems(active);
+
+        IntegerField addQty = new IntegerField("Cantidad");
+        addQty.setMin(1);
+        addQty.setStepButtonsVisible(true);
+        addQty.setValue(1);
+
+        Button addBtn = new Button("Añadir", ev -> {
+            Product p = productBox.getValue();
+            Integer q = addQty.getValue();
+            if (p == null || p.getId() == null) {
+                Notification.show("Selecciona un producto", 2000, Notification.Position.BOTTOM_START);
+                return;
+            }
+            if (q == null || q <= 0) {
+                Notification.show("Cantidad inválida", 2000, Notification.Position.BOTTOM_START);
+                return;
+            }
+
+            Long pid = p.getId();
+
+            // Si ya existe en el pedido, sumamos cantidad
+            if (fields.containsKey(pid)) {
+                IntegerField f = fields.get(pid);
+                Integer current = f.getValue();
+                f.setValue((current == null ? 0 : current) + q);
+                return;
+            }
+
+            // Si no existía, lo creamos como nuevo campo
+            IntegerField qty = new IntegerField(p.getName());
+            qty.setMin(0);
+            qty.setStepButtonsVisible(true);
+            qty.setValue(q);
+
+            fields.put(pid, qty);
+            form.add(qty);
+
+            productBox.clear();
+            addQty.setValue(1);
+        });
+
+        HorizontalLayout addRow = new HorizontalLayout(productBox, addQty, addBtn);
+        addRow.setWidthFull();
+        addRow.setFlexGrow(1, productBox);
+
         Button guardar = new Button("Guardar cambios");
         Button cerrar = new Button("Cerrar", ev -> dialog.close());
 
@@ -171,17 +224,20 @@ public class ClientOrdersView extends VerticalLayout {
                 }
 
                 orderService.updatePaidOrderItemsBeforeKitchen(o.getId(), map);
-                Notification.show("Pedido actualizado");
+
+                // ✅ Mensaje limpio (sin “se ha marcado como NO pagado”)
+                Notification.show("Pedido actualizado", 2500, Notification.Position.BOTTOM_START);
+
                 dialog.close();
                 refresh();
             } catch (Exception ex) {
-                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo modificar");
+                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo modificar",
+                        3500, Notification.Position.BOTTOM_START);
             }
         });
 
         HorizontalLayout actions = new HorizontalLayout(guardar, cerrar);
-        dialog.add(form, actions);
+        dialog.add(addRow, form, actions);
         dialog.open();
     }
-
 }

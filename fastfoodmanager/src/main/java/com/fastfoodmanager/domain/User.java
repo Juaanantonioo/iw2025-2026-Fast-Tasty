@@ -72,4 +72,12 @@ public class User {
 
     public String getDireccion() { return direccion; }
     public void setDireccion(String direccion) { this.direccion = direccion; }
+    // En tu clase Usuario.java
+
+    @Column(name = "secret_2fa") // Opcional, para definir nombre en BBDD
+    private String secret2fa;
+
+    // Añade los Getter y Setter normales
+    public String getSecret2fa() { return secret2fa; }
+    public void setSecret2fa(String secret2fa) { this.secret2fa = secret2fa; }
 }

@@ -7,6 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager; // 👈 Importante
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration; // 👈 Importante
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -42,8 +44,16 @@ public class SecurityConfig extends VaadinWebSecurity {
         super.configure(http);
         setLoginView(http, LoginView.class);
 
+        // NOTA: Al hacer login manual en LoginView, este successHandler
+        // podría no ejecutarse automáticamente. Ver explicación abajo.
         http.formLogin(form -> form.successHandler(this::onLoginSuccess));
         http.logout(logout -> logout.logoutSuccessUrl("/login"));
+    }
+
+    // 👇 ESTE ES EL BEAN QUE TE FALTABA Y CAUSABA EL ERROR
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
     }
 
     private void onLoginSuccess(HttpServletRequest request,

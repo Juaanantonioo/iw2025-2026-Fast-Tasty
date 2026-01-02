@@ -23,19 +23,20 @@ public class MainLayout extends AppLayout {
         title.getStyle()
                 .set("font-size", "1.4rem")
                 .set("margin", "0")
-                .set("color", "#ff5c1a");
+                .set("color", "#ff5c1a")
+                .set("white-space", "nowrap");
 
         HorizontalLayout tabs = new HorizontalLayout();
         tabs.setSpacing(true);
+        tabs.setPadding(false);
         tabs.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        tabs.getStyle().set("flex-wrap", "wrap"); // evita overflow si hay muchas pestañas
 
-        // NO autenticado: Carta + Login
         if (!isAuthenticated()) {
             tabs.add(new RouterLink("Carta", CartaView.class));
             tabs.add(new RouterLink("Entrar", LoginView.class));
         }
 
-        // USER: Carta + Pedido + Mis pedidos (SIN Inicio)
         if (hasRole("USER")) {
             tabs.add(new RouterLink("Carta", CartaView.class));
             tabs.add(new RouterLink("Pedido", CarritoView.class));
@@ -43,36 +44,29 @@ public class MainLayout extends AppLayout {
             tabs.add(new RouterLink("Perfil", ProfileView.class));
         }
 
-        // OPERATOR
         if (hasRole("OPERATOR")) {
             tabs.add(new RouterLink("Inicio", OperatorHomeView.class));
             tabs.add(new RouterLink("Pedidos", OperatorOrdersView.class));
             tabs.add(new RouterLink("Stock", OperatorStockView.class));
-
-            // NUEVO:
             tabs.add(new RouterLink("Caja", OperatorCashView.class));
             tabs.add(new RouterLink("Estadísticas", OperatorStatsView.class));
         }
 
-        // COOK
         if (hasRole("COOK")) {
             tabs.add(new RouterLink("Inicio", CookHomeView.class));
             tabs.add(new RouterLink("Cocina", CookOrdersView.class));
         }
 
-        // DELIVERY
         if (hasRole("DELIVERY")) {
             tabs.add(new RouterLink("Inicio", DeliveryHomeView.class));
             tabs.add(new RouterLink("Repartos", DeliveryOrdersView.class));
         }
 
-        // MANAGER
         if (hasRole("MANAGER")) {
             tabs.add(new RouterLink("Inicio", ManagerHomeView.class));
             tabs.add(new RouterLink("Gestión de usuarios", ManagerUsersView.class));
         }
 
-        // ADMIN
         if (hasRole("ADMIN")) {
             tabs.add(new RouterLink("Inicio", AdminHomeView.class));
             tabs.add(new RouterLink("Gestionar productos", ProductView.class));
@@ -81,7 +75,9 @@ public class MainLayout extends AppLayout {
 
         HorizontalLayout right = new HorizontalLayout();
         right.setSpacing(true);
+        right.setPadding(false);
         right.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        right.getStyle().set("white-space", "nowrap");
 
         if (isAuthenticated()) {
             right.add(new Span("Hola, " + getUsername()));
@@ -95,9 +91,9 @@ public class MainLayout extends AppLayout {
             logout.getStyle()
                     .set("background-color", "#f7f7f7")
                     .set("color", "#333")
-                    .set("border-radius", "8px")
+                    .set("border-radius", "999px")
                     .set("padding", "6px 14px")
-                    .set("font-weight", "600")
+                    .set("font-weight", "700")
                     .set("cursor", "pointer");
 
             right.add(logout);
@@ -105,13 +101,19 @@ public class MainLayout extends AppLayout {
 
         HorizontalLayout bar = new HorizontalLayout(title, tabs, right);
         bar.setWidthFull();
-        bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-        bar.expand(tabs);
         bar.setSpacing(true);
+        bar.setPadding(true);
+        bar.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+
+        bar.expand(tabs);
+
+        bar.addClassName("app-topbar");
         bar.getStyle()
-                .set("padding", "0.6rem 1.2rem")
-                .set("background", "white")
-                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.05)");
+                .set("padding", "0.65rem 1.2rem")
+                .set("background", "rgba(255,255,255,0.85)")
+                .set("box-shadow", "0 2px 10px rgba(0,0,0,0.06)")
+                .set("border-bottom", "1px solid rgba(0,0,0,0.06)")
+                .set("overflow", "hidden"); // último seguro anti-overflow
 
         addToNavbar(bar);
     }

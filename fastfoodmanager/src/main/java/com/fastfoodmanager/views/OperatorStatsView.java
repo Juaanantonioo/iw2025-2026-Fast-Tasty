@@ -3,9 +3,7 @@ package com.fastfoodmanager.views;
 import com.fastfoodmanager.service.CashService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -15,9 +13,10 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.*;
+
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 
 @PageTitle("Estadísticas | Operario")
 @Route(value = "operator/estadisticas", layout = MainLayout.class)
@@ -34,19 +33,33 @@ public class OperatorStatsView extends VerticalLayout {
 
     private final Span rangeLabel = new Span();
     private final Div chart = new Div();
-    private final VerticalLayout list = new VerticalLayout();
-
-    private final DateTimeFormatter dmy = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private final Div listBox = new Div();
 
     public OperatorStatsView(CashService cashService) {
         this.cashService = cashService;
 
-        setWidthFull();
-        setPadding(true);
-        setSpacing(true);
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
+        addClassName("dashboard-bg");
 
+        Div page = new Div();
+        page.addClassName("ft-page");
+
+        Div header = new Div();
+        header.addClassName("ft-topbar");
+
+        Div headerBlock = new Div();
         H1 title = new H1("Estadísticas de caja");
-        title.getStyle().set("margin", "0");
+        title.addClassName("ft-title");
+        Paragraph subtitle = new Paragraph("Analiza cierres por semana, mes o año.");
+        subtitle.addClassName("ft-subtitle");
+        headerBlock.add(title, subtitle);
+
+        header.add(headerBlock);
+
+        Div filtersCard = new Div();
+        filtersCard.addClassName("ft-card");
 
         mode.setLabel("Filtro");
         mode.setItems(Mode.SEMANA, Mode.MES, Mode.ANO);
@@ -55,24 +68,34 @@ public class OperatorStatsView extends VerticalLayout {
         baseDate.setLabel("Fecha base");
         baseDate.setValue(LocalDate.now());
 
+        apply.getElement().getThemeList().add("primary");
         apply.addClickListener(e -> reload());
 
         HorizontalLayout filters = new HorizontalLayout(mode, baseDate, apply);
         filters.setDefaultVerticalComponentAlignment(Alignment.END);
         filters.setSpacing(true);
 
-        rangeLabel.getStyle().set("opacity", "0.75");
+        rangeLabel.getStyle().set("color", "var(--ft-muted)");
 
-        chart.getStyle()
-                .set("margin-top", "1rem")
-                .set("padding", "1rem")
-                .set("border-radius", "12px")
-                .set("background", "rgba(0,0,0,0.03)");
+        filtersCard.add(filters, rangeLabel);
 
-        list.setPadding(false);
-        list.setSpacing(false);
+        Div results = new Div();
+        results.addClassName("ft-grid-2");
 
-        add(title, filters, rangeLabel, chart, list);
+        Div chartCard = new Div();
+        chartCard.addClassName("ft-card");
+        chart.getStyle().set("width", "100%");
+        chartCard.add(new H3("Resumen"), chart);
+
+        Div listCard = new Div();
+        listCard.addClassName("ft-card");
+        listBox.getStyle().set("width", "100%");
+        listCard.add(new H3("Detalle"), listBox);
+
+        results.add(chartCard, listCard);
+
+        page.add(header, filtersCard, results);
+        add(page);
 
         reload();
     }
@@ -85,7 +108,6 @@ public class OperatorStatsView extends VerticalLayout {
         }
 
         Mode m = mode.getValue() == null ? Mode.SEMANA : mode.getValue();
-
         switch (m) {
             case SEMANA -> renderWeek(base);
             case MES -> renderMonth(base);
@@ -96,7 +118,6 @@ public class OperatorStatsView extends VerticalLayout {
     private void renderWeek(LocalDate base) {
         LocalDate monday = base.with(DayOfWeek.MONDAY);
         LocalDate sunday = monday.plusDays(6);
-
         rangeLabel.setText("Mostrando SEMANA: " + monday + " → " + sunday);
 
         LocalDateTime from = monday.atStartOfDay();
@@ -104,7 +125,6 @@ public class OperatorStatsView extends VerticalLayout {
 
         Map<DayOfWeek, Double> map = cashService.getClosedTotalsByDayOfWeek(from, toExclusive);
 
-        // Orden L..D
         List<DayOfWeek> order = List.of(
                 DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
                 DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
@@ -112,12 +132,11 @@ public class OperatorStatsView extends VerticalLayout {
 
         LinkedHashMap<String, Double> series = new LinkedHashMap<>();
         for (DayOfWeek d : order) {
-            String label = d.getDisplayName(TextStyle.FULL, new Locale("es", "ES"));
-            label = capitalize(label);
+            String label = capitalize(d.getDisplayName(TextStyle.FULL, new Locale("es", "ES")));
             series.put(label, map.getOrDefault(d, 0.0));
         }
 
-        renderBarChart(series, 7);
+        renderBarChart(series);
         renderList(series);
     }
 
@@ -125,18 +144,16 @@ public class OperatorStatsView extends VerticalLayout {
         YearMonth ym = YearMonth.from(base);
         LocalDate from = ym.atDay(1);
         LocalDate to = ym.atEndOfMonth();
-
         rangeLabel.setText("Mostrando MES: " + from + " → " + to);
 
         Map<LocalDate, Double> totals = cashService.getClosedTotalsByDay(from, to);
 
         LinkedHashMap<String, Double> series = new LinkedHashMap<>();
         for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
-            String label = String.valueOf(d.getDayOfMonth());
-            series.put(label, totals.getOrDefault(d, 0.0));
+            series.put(String.valueOf(d.getDayOfMonth()), totals.getOrDefault(d, 0.0));
         }
 
-        renderBarChart(series, series.size());
+        renderBarChart(series);
         renderList(series);
     }
 
@@ -144,7 +161,6 @@ public class OperatorStatsView extends VerticalLayout {
         int year = base.getYear();
         LocalDate from = LocalDate.of(year, 1, 1);
         LocalDate to = LocalDate.of(year, 12, 31);
-
         rangeLabel.setText("Mostrando AÑO: " + year);
 
         Map<YearMonth, Double> totals = cashService.getClosedTotalsByMonth(from, to);
@@ -152,91 +168,78 @@ public class OperatorStatsView extends VerticalLayout {
         LinkedHashMap<String, Double> series = new LinkedHashMap<>();
         for (int m = 1; m <= 12; m++) {
             YearMonth ym = YearMonth.of(year, m);
-            String label = ym.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "ES"));
-            label = capitalize(label.replace(".", ""));
+            String label = capitalize(ym.getMonth().getDisplayName(TextStyle.SHORT, new Locale("es", "ES")).replace(".", ""));
             series.put(label, totals.getOrDefault(ym, 0.0));
         }
 
-        renderBarChart(series, 12);
+        renderBarChart(series);
         renderList(series);
     }
 
-    /** Gráfico de barras simple: sin dependencias externas. */
-    private void renderBarChart(LinkedHashMap<String, Double> series, int n) {
+    private void renderBarChart(LinkedHashMap<String, Double> series) {
         chart.removeAll();
 
         double max = series.values().stream().mapToDouble(Double::doubleValue).max().orElse(0.0);
         if (max <= 0) max = 1.0;
 
-        // contenedor barras
-        HorizontalLayout bars = new HorizontalLayout();
-        bars.setWidthFull();
-        bars.setSpacing(true);
-        bars.setDefaultVerticalComponentAlignment(Alignment.END);
+        Div barWrap = new Div();
+        barWrap.getStyle()
+                .set("display", "flex")
+                .set("gap", "10px")
+                .set("align-items", "flex-end")
+                .set("overflow-x", "auto")
+                .set("padding", "10px 2px");
 
-        // Ajuste de ancho según cantidad (mes = muchas barras)
-        String barWidth = (n <= 12) ? "42px" : (n <= 31 ? "18px" : "12px");
-
-        for (Map.Entry<String, Double> e : series.entrySet()) {
+        for (var e : series.entrySet()) {
             String label = e.getKey();
             double value = e.getValue();
-
-            Div bar = new Div();
             double pct = value / max;
-            int height = (int) Math.round(220 * pct); // 0..220 px
 
-            bar.getStyle()
-                    .set("width", barWidth)
-                    .set("height", height + "px")
-                    .set("border-radius", "8px")
-                    .set("background", "#2b6cb0"); // azul
-            // Si prefieres sin color fijo, dímelo y lo hago neutro
+            Div col = new Div();
+            col.getStyle()
+                    .set("display", "flex")
+                    .set("flex-direction", "column")
+                    .set("align-items", "center")
+                    .set("min-width", "44px");
 
             Span v = new Span(String.format("€%.2f", value));
-            v.getStyle().set("font-size", "0.75rem").set("opacity", "0.85");
+            v.getStyle().set("font-size", "12px").set("color", "var(--ft-muted)");
+
+            Div bar = new Div();
+            bar.getStyle()
+                    .set("width", "36px")
+                    .set("height", Math.round(220 * pct) + "px")
+                    .set("border-radius", "10px")
+                    .set("background", "var(--ft-primary)");
 
             Span l = new Span(label);
-            l.getStyle().set("font-size", "0.75rem").set("opacity", "0.85");
+            l.getStyle().set("font-size", "12px").set("color", "var(--ft-muted)");
 
-            VerticalLayout col = new VerticalLayout(v, bar, l);
-            col.setPadding(false);
-            col.setSpacing(false);
-            col.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-            col.getStyle().set("min-width", barWidth);
-
-            bars.add(col);
+            col.add(v, bar, l);
+            barWrap.add(col);
         }
 
-        chart.add(bars);
+        chart.add(barWrap);
     }
 
     private void renderList(LinkedHashMap<String, Double> series) {
-        list.removeAll();
-        list.getStyle().set("margin-top", "1rem");
+        listBox.removeAll();
 
-        Div box = new Div();
-        box.getStyle()
-                .set("padding", "1rem")
-                .set("border-radius", "12px")
-                .set("border", "1px solid rgba(0,0,0,0.08)")
-                .set("background", "white")
-                .set("width", "320px");
-
-        for (Map.Entry<String, Double> e : series.entrySet()) {
-            HorizontalLayout row = new HorizontalLayout();
-            row.setWidthFull();
-            row.setJustifyContentMode(JustifyContentMode.BETWEEN);
+        for (var e : series.entrySet()) {
+            Div row = new Div();
+            row.getStyle()
+                    .set("display", "flex")
+                    .set("justify-content", "space-between")
+                    .set("padding", "10px 0")
+                    .set("border-bottom", "1px solid rgba(0,0,0,0.06)");
 
             Span left = new Span(e.getKey());
             Span right = new Span(String.format("€ %.2f", e.getValue()));
+            right.getStyle().set("font-weight", "800");
 
             row.add(left, right);
-            row.getStyle().set("padding", "0.25rem 0");
-
-            box.add(row);
+            listBox.add(row);
         }
-
-        list.add(box);
     }
 
     private String capitalize(String s) {

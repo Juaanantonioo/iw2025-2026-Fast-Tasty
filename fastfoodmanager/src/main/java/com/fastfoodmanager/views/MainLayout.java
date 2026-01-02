@@ -3,6 +3,7 @@ package com.fastfoodmanager.views;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.dependency.JavaScript;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -15,9 +16,15 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @AnonymousAllowed
+@JavaScript("https://cdn.conveythis.com/javascript/conveythis.js?api_key=pub_450bff64f17d3b1a1a1efac21fe1cfa8")
 public class MainLayout extends AppLayout {
 
     public MainLayout() {
+
+        // Inicializa ConveyThis cuando carga la UI (sin romper nada si no existe el init)
+        UI.getCurrent().getPage().executeJs(
+                "if (window.ConveyThis_Initialize) { ConveyThis_Initialize({}); }"
+        );
 
         H1 title = new H1("🍔 FastTasty");
         title.getStyle()

@@ -2,14 +2,15 @@ package com.fastfoodmanager.service;
 
 import com.fastfoodmanager.domain.Product;
 import com.fastfoodmanager.domain.FoodType;
-import com.fastfoodmanager.domain.Allergen;
 import com.fastfoodmanager.repository.ProductRepository;
 import com.fastfoodmanager.repository.FoodTypeRepository;
-import com.fastfoodmanager.repository.AllergenRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
+@Transactional
 public class FoodTypeService {
 
     private final FoodTypeRepository foodTypeRepository;
@@ -21,20 +22,32 @@ public class FoodTypeService {
         this.productRepository = productRepository;
     }
 
+    // -------- CRUD BÁSICO --------
+
     public List<FoodType> findAll() {
         return foodTypeRepository.findAll();
     }
 
     public FoodType save(FoodType foodType) {
+        // ⚡ Spring Data JPA guardará el campo 'image' automáticamente
         return foodTypeRepository.save(foodType);
     }
 
-    public void deleteFoodType(FoodType foodType) {
-        // Eliminar primero los productos
-        List<Product> products = productRepository.findByType(foodType);
-        productRepository.deleteAll(products);
+    // -------- LÓGICA DE NEGOCIO --------
 
-        // Luego eliminar el foodType
+    public void deleteFoodType(FoodType foodType) {
+
+        // 1️⃣ Obtener productos de la categoría
+        List<Product> products = productRepository.findByType(foodType);
+
+        // 2️⃣ Desactivar productos y romper la referencia
+        for (Product p : products) {
+            p.setActive(false);
+            p.setType(null);  // 🔑 importante
+        }
+        productRepository.saveAll(products);
+
+        // 3️⃣ Eliminar la categoría
         foodTypeRepository.delete(foodType);
     }
 }

@@ -123,15 +123,34 @@ public class CartaView extends VerticalLayout {
         menuService.findAllFoodTypes().forEach(type -> {
             Div card = new Div();
             card.addClassName("product-card");
-            card.getStyle().set("cursor", "pointer");
+            card.getStyle().set("cursor", "pointer")
+                    .set("padding", "14px")
+                    .set("border-radius", "12px")
+                    .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)")
+                    .set("text-align", "center")
+                    .set("max-width", "260px")
+                    .set("background-color", "white");
 
+            // Imagen de la categoría
+            Image img = new Image();
+            img.setWidth("180px");
+            img.getStyle().set("border-radius", "12px");
+
+            if (type.getImage() != null && type.getImage().length > 0) {
+                String base64 = Base64.getEncoder().encodeToString(type.getImage());
+                img.setSrc("data:image/png;base64," + base64);
+            } else {
+                img.setSrc("path/to/default/category.png"); // ruta a imagen por defecto
+            }
+
+            // Nombre
             H1 name = new H1(type.getName());
             name.getStyle()
                     .set("color", "#ff7b00")
                     .set("font-size", "1.6rem")
-                    .set("margin", "20px 0");
+                    .set("margin", "12px 0");
 
-            card.add(name);
+            card.add(img, name);
             card.addClickListener(e -> showProductsByType(type));
 
             productGrid.add(card);
@@ -213,9 +232,10 @@ public class CartaView extends VerticalLayout {
         dialog.setHeaderTitle(product.getName());
 
         VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(false);
 
-        Image bigImg =
-                new Image(getImageDataUrl(product), product.getName());
+        Image bigImg = new Image(getImageDataUrl(product), product.getName());
         bigImg.setWidth("420px");
 
         Paragraph desc = new Paragraph(
@@ -226,6 +246,76 @@ public class CartaView extends VerticalLayout {
         Paragraph price =
                 new Paragraph("Precio: " + currency.format(product.getPrice()));
 
+        // =========================
+        // INGREDIENTES CON CANTIDAD
+        // =========================
+        VerticalLayout ingredientsLayout = new VerticalLayout();
+        ingredientsLayout.setSpacing(false);
+        ingredientsLayout.setPadding(false);
+
+        if (product.getIngredients() != null && !product.getIngredients().isEmpty()) {
+            product.getIngredients().forEach(ingredient -> {
+
+                // Contenedor horizontal
+                Div row = new Div();
+                row.getStyle()
+                        .set("display", "flex")
+                        .set("align-items", "center")
+                        .set("justify-content", "space-between")
+                        .set("gap", "12px")
+                        .set("width", "100%");
+
+                // Nombre ingrediente
+                Span name = new Span(ingredient.getName());
+                name.getStyle().set("flex", "1");
+
+                // Cantidad (empieza en la actual o 0)
+                Span quantity = new Span(String.valueOf((int) ingredient.getQuantity()));
+                quantity.getStyle()
+                        .set("min-width", "24px")
+                        .set("text-align", "center")
+                        .set("font-weight", "bold");
+
+                // Botón -
+                Button minus = new Button("−");
+                minus.addClickListener(e -> {
+                    int q = Integer.parseInt(quantity.getText());
+                    if (q > 0) {
+                        q--;
+                        quantity.setText(String.valueOf(q));
+                        ingredient.setQuantity(q);
+                    }
+                });
+
+                // Botón +
+                Button plus = new Button("+");
+                plus.addClickListener(e -> {
+                    int q = Integer.parseInt(quantity.getText());
+                    if (q < 3) {
+                        q++;
+                        quantity.setText(String.valueOf(q));
+                        ingredient.setQuantity(q);
+                    }
+                });
+
+                // Estilos botones
+                minus.getStyle()
+                        .set("min-width", "32px")
+                        .set("background-color", "#eee");
+                plus.getStyle()
+                        .set("min-width", "32px")
+                        .set("background-color", "#eee");
+
+                row.add(name, minus, quantity, plus);
+                ingredientsLayout.add(row);
+            });
+        } else {
+            ingredientsLayout.add(new Span("— Sin información —"));
+        }
+
+        // =========================
+        // ALÉRGENOS
+        // =========================
         UnorderedList allergens = new UnorderedList();
         if (product.getAllergens() != null && !product.getAllergens().isEmpty()) {
             product.getAllergens()
@@ -234,7 +324,16 @@ public class CartaView extends VerticalLayout {
             allergens.add(new ListItem("— Sin información —"));
         }
 
-        content.add(bigImg, desc, price, new H3("Alérgenos"), allergens);
+        content.add(
+                bigImg,
+                desc,
+                price,
+                new H3("Ingredientes"),
+                ingredientsLayout,
+                new H3("Alérgenos"),
+                allergens
+        );
+
         dialog.add(content);
 
         Button add = new Button("Agregar al Pedido", e -> {

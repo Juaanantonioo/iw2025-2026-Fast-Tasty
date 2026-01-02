@@ -68,7 +68,7 @@ public class MainLayout extends AppLayout {
         }
 
         if (hasRole("ADMIN")) {
-            tabs.add(new RouterLink("Inicio", AdminHomeView.class));
+            tabs.add(new RouterLink("Inicio", CartaView.class));
             tabs.add(new RouterLink("Gestionar productos", ProductView.class));
             tabs.add(new RouterLink("Gestionar encargados", AdminManagersView.class));
             tabs.add(new RouterLink("Gestionar categorías", AdminFoodTypeView.class));

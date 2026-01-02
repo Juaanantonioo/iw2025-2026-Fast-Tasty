@@ -1,7 +1,6 @@
 package com.fastfoodmanager.domain;
 
 import jakarta.persistence.*;
-import lombok.*;
 
 @Entity
 public class FoodType {
@@ -12,14 +11,34 @@ public class FoodType {
 
     private String name;
 
+    // Nueva propiedad para almacenar la imagen en bytes
+    @Lob
+    private byte[] image;
+
     public FoodType() {}
 
     public FoodType(String name) {
         this.name = name;
     }
 
-    // GETTERS / SETTERS
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    // ---------- GETTERS / SETTERS ----------
+    public Long getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public byte[] getImage() {
+        return image;
+    }
+
+    public void setImage(byte[] image) {
+        this.image = image;
+    }
 }

@@ -33,6 +33,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.util.Base64;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Route(value = "products", layout = MainLayout.class)
@@ -49,6 +50,10 @@ public class ProductView extends VerticalLayout {
     private final MultiSelectComboBox<Allergen> allergens = new MultiSelectComboBox<>("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
     private final com.vaadin.flow.component.checkbox.Checkbox active = new com.vaadin.flow.component.checkbox.Checkbox("Activo", true);
+
+    // Ingredientes
+    private final VerticalLayout ingredientsContainer = new VerticalLayout();
+    private final Button addIngredientBtn = new Button("➕ Agregar ingrediente");
 
     // Imagen
     private final MemoryBuffer imageBuffer = new MemoryBuffer();
@@ -104,15 +109,18 @@ public class ProductView extends VerticalLayout {
         name.setClearButtonVisible(true);
         name.setWidth("280px");
 
-        // ComboBox FoodType
         type.setItems(service.findAllFoodTypes());
         type.setItemLabelGenerator(FoodType::getName);
         type.setPlaceholder("Selecciona el tipo");
 
-        // MultiSelect alérgenos
         allergens.setItems(allergenRepo.findAll());
         allergens.setItemLabelGenerator(Allergen::getName);
         allergens.setPlaceholder("Selecciona alérgenos si los tiene");
+
+        // Ingredientes
+        ingredientsContainer.setPadding(false);
+        ingredientsContainer.setSpacing(true);
+        addIngredientBtn.addClickListener(e -> addIngredientRow(null, null));
 
         // Configuración Upload de imagen
         imageUpload.setAcceptedFileTypes("image/jpeg", "image/png");
@@ -132,24 +140,18 @@ public class ProductView extends VerticalLayout {
                     previewImage.setSrc("");
                     return;
                 }
-
                 int width = bufferedImage.getWidth();
                 int height = bufferedImage.getHeight();
-
-                // Validamos dimensiones 400x300
                 if (width != 400 || height != 300) {
                     Notification.show("La imagen debe tener 400x300 px", 3000, Notification.Position.TOP_CENTER);
                     imageUpload.clearFileList();
                     previewImage.setSrc("");
                     return;
                 }
-
-                // Convertir imagen a Base64 para preview
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ImageIO.write(bufferedImage, "png", baos);
                 String base64 = Base64.getEncoder().encodeToString(baos.toByteArray());
                 previewImage.setSrc("data:image/png;base64," + base64);
-
             } catch (Exception ex) {
                 Notification.show("Error al procesar la imagen", 3000, Notification.Position.TOP_CENTER);
                 imageUpload.clearFileList();
@@ -157,15 +159,20 @@ public class ProductView extends VerticalLayout {
             }
         });
 
-        // FormLayout
         var form = new com.vaadin.flow.component.formlayout.FormLayout();
         form.setResponsiveSteps(
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("0", 1),
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("720px", 2)
         );
-        form.add(name, type, price, description, allergens, active, imageUpload, previewImage);
+
+        // Añadimos los ingredientes antes de la imagen
+        form.add(name, type, price, description, allergens, active,
+                addIngredientBtn, ingredientsContainer, imageUpload, previewImage);
+
         form.setColspan(description, 2);
         form.setColspan(allergens, 2);
+        form.setColspan(addIngredientBtn, 2);
+        form.setColspan(ingredientsContainer, 2);
         form.setColspan(imageUpload, 2);
         form.setColspan(previewImage, 2);
 
@@ -181,23 +188,15 @@ public class ProductView extends VerticalLayout {
         grid.addColumn(Product::getId).setHeader("Id").setAutoWidth(true).setFlexGrow(0);
         grid.addColumn(Product::getName).setHeader("Nombre").setAutoWidth(true);
         grid.addColumn(p -> p.getType() != null ? p.getType().getName() : "")
-                .setHeader("Tipo")
-                .setAutoWidth(true);
+                .setHeader("Tipo").setAutoWidth(true);
         grid.addColumn(Product::getDescription).setHeader("Descripción").setAutoWidth(true).setFlexGrow(2);
         grid.addColumn(p -> formatMoney(p.getPrice())).setHeader("Precio").setAutoWidth(true);
         grid.addColumn(p -> p.getAllergens() == null ? "" :
-                        p.getAllergens().stream()
-                                .map(Allergen::getName)
-                                .collect(Collectors.joining(", ")))
-                .setHeader("Alérgenos")
-                .setAutoWidth(true);
+                        p.getAllergens().stream().map(Allergen::getName).collect(Collectors.joining(", ")))
+                .setHeader("Alérgenos").setAutoWidth(true);
         grid.addColumn(Product::isActive).setHeader("Activo").setAutoWidth(true);
 
-        grid.addThemeVariants(
-                GridVariant.LUMO_ROW_STRIPES,
-                GridVariant.LUMO_COMPACT,
-                GridVariant.LUMO_WRAP_CELL_CONTENT
-        );
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_COMPACT, GridVariant.LUMO_WRAP_CELL_CONTENT);
         grid.setHeight("55vh");
 
         grid.asSingleSelect().addValueChangeListener(ev -> {
@@ -206,43 +205,33 @@ public class ProductView extends VerticalLayout {
                 current = sel;
                 binder.readBean(current);
 
-                // Mostrar imagen del producto seleccionado
+                // Ingredientes existentes
+                ingredientsContainer.removeAll();
+                if (current.getIngredients() != null) {
+                    current.getIngredients().forEach(i -> addIngredientRow(i.getName(), i.getQuantity()));
+                }
+
+                // Mostrar imagen del producto
                 if (current.getImage() != null) {
                     String base64 = Base64.getEncoder().encodeToString(current.getImage());
                     previewImage.setSrc("data:image/png;base64," + base64);
-                } else {
-                    previewImage.setSrc("");
-                }
+                } else previewImage.setSrc("");
             } else {
                 resetForm();
             }
         });
 
-        // Layout principal
         add(header, formCard, grid);
 
         // ===== BINDER =====
-        binder.forField(name)
-                .asRequired("El nombre es obligatorio")
-                .bind(Product::getName, Product::setName);
-
-        binder.forField(description)
-                .bind(Product::getDescription, Product::setDescription);
-
-        binder.forField(type)
-                .asRequired("Debes elegir un tipo de comida")
-                .bind(Product::getType, Product::setType);
-
-        binder.forField(allergens)
-                .bind(Product::getAllergens, Product::setAllergens);
-
-        binder.forField(price)
-                .asRequired("El precio es obligatorio")
+        binder.forField(name).asRequired("El nombre es obligatorio").bind(Product::getName, Product::setName);
+        binder.forField(description).bind(Product::getDescription, Product::setDescription);
+        binder.forField(type).asRequired("Debes elegir un tipo de comida").bind(Product::getType, Product::setType);
+        binder.forField(allergens).bind(Product::getAllergens, Product::setAllergens);
+        binder.forField(price).asRequired("El precio es obligatorio")
                 .withValidator(new DoubleRangeValidator("El precio debe ser ≥ 0", 0.0, null))
                 .bind(Product::getPrice, Product::setPrice);
-
-        binder.forField(active)
-                .bind(Product::isActive, Product::setActive);
+        binder.forField(active).bind(Product::isActive, Product::setActive);
 
         // ===== EVENTOS =====
         save.addClickListener(e -> onSave());
@@ -262,11 +251,48 @@ public class ProductView extends VerticalLayout {
         load();
     }
 
+    private void addIngredientRow(String nameVal, Double quantityVal) {
+        HorizontalLayout row = new HorizontalLayout();
+        row.setWidthFull();
+        row.setAlignItems(Alignment.CENTER);
+        row.getStyle().set("gap", "10px");
+
+        TextField ingredientName = new TextField();
+        ingredientName.setPlaceholder("Ingrediente");
+        ingredientName.setWidth("200px");
+        if (nameVal != null) ingredientName.setValue(nameVal);
+
+        NumberField ingredientQty = new NumberField();
+        ingredientQty.setPlaceholder("Cantidad (0-3)");
+        ingredientQty.setMin(0);
+        ingredientQty.setMax(3);
+        ingredientQty.setStep(0.1);
+        ingredientQty.setWidth("100px");
+        if (quantityVal != null) ingredientQty.setValue(quantityVal);
+
+        Button removeBtn = new Button("❌", e -> ingredientsContainer.remove(row));
+
+        row.add(ingredientName, ingredientQty, removeBtn);
+        ingredientsContainer.add(row);
+    }
+
     private void onSave() {
         try {
             binder.writeBean(current);
 
-            // Guardar imagen en Product
+            // Guardar ingredientes
+            List<Product.Ingredient> ingredientsList = ingredientsContainer.getChildren()
+                    .map(c -> (HorizontalLayout)c)
+                    .map(row -> {
+                        TextField nameField = (TextField) row.getComponentAt(0);
+                        NumberField qtyField = (NumberField) row.getComponentAt(1);
+                        if (nameField.getValue() == null || nameField.getValue().isEmpty()) return null;
+                        double qty = qtyField.getValue() != null ? qtyField.getValue() : 0;
+                        return new Product.Ingredient(nameField.getValue(), qty);
+                    }).filter(ing -> ing != null).toList();
+            current.setIngredients(ingredientsList);
+
+            // Guardar imagen
             if (imageBuffer.getInputStream() != null) {
                 try (InputStream is = imageBuffer.getInputStream();
                      ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -281,6 +307,7 @@ public class ProductView extends VerticalLayout {
             load();
             current = new Product();
             binder.readBean(current);
+            ingredientsContainer.removeAll();
             previewImage.setSrc("");
             imageUpload.clearFileList();
         } catch (ValidationException ex) {
@@ -298,6 +325,7 @@ public class ProductView extends VerticalLayout {
         current = new Product();
         binder.readBean(current);
         grid.deselectAll();
+        ingredientsContainer.removeAll();
         previewImage.setSrc("");
         imageUpload.clearFileList();
     }

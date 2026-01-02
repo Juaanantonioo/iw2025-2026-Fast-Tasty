@@ -24,12 +24,18 @@ import com.vaadin.flow.router.BeforeEnterEvent;
 import com.vaadin.flow.router.BeforeEnterObserver;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.VaadinService;
+import com.vaadin.flow.server.VaadinServletRequest;
+import com.vaadin.flow.server.VaadinServletResponse;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException; // 👈 Importante
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 @Route("login")
 @PageTitle("Iniciar sesión | FastTasty")
@@ -42,6 +48,9 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
     private final AuthenticationManager authManager;
     private final TwoFactorService twoFactorService;
     private final UserService userService;
+
+    // Repositorio para guardar la sesión manualmente
+    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
     public LoginView(AuthenticationManager authManager,
                      TwoFactorService twoFactorService,
@@ -61,12 +70,10 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
 
         login.addLoginListener(e -> {
             try {
-                // Si el login falla aquí, saltará al catch y liberará el formulario
                 intentarLogin(e.getUsername(), e.getPassword());
             } catch (AuthenticationException ex) {
-                // Capturamos CUALQUIER error de autenticación para que no se bloquee
                 login.setError(true);
-                login.setEnabled(true); // Forzamos habilitar por si acaso
+                login.setEnabled(true);
             }
         });
 
@@ -86,15 +93,10 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void intentarLogin(String username, String password) {
-        // 1. Validar contraseña primero
         Authentication authAttempt = new UsernamePasswordAuthenticationToken(username, password);
         Authentication authResult = authManager.authenticate(authAttempt);
-
-        // 2. Obtener usuario de la BD
         User user = userService.findByUsername(username).orElse(null);
 
-        // Importante: Habilitamos el login aquí porque la autenticación básica ya pasó.
-        // Si no lo hacemos, el formulario podría seguir pensando que está "cargando".
         login.setEnabled(true);
 
         if (user != null) {
@@ -106,7 +108,6 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         }
     }
 
-    // --- DIÁLOGO 1: VERIFICAR ---
     private void mostrarDialogoVerificacion(String secret, Authentication authResult) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Seguridad 2FA Requerida");
@@ -126,12 +127,10 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         verifyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         verifyButton.addClickShortcut(Key.ENTER);
 
-        // BOTÓN CANCELAR ARREGLADO
         Button cancelButton = new Button("Cancelar", e -> {
             dialog.close();
-            login.setEnabled(true); // Reactiva el formulario
-            login.setError(false);  // Quita mensajes de error previos
-            // Opcional: poner el foco de nuevo en el usuario o contraseña si quieres
+            login.setEnabled(true);
+            login.setError(false);
         });
         cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
@@ -141,7 +140,6 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         dialog.open();
     }
 
-    // --- DIÁLOGO 2: CONFIGURACIÓN OBLIGATORIA ---
     private void mostrarDialogoConfiguracionObligatoria(User user, Authentication authResult) {
         String tempSecret = twoFactorService.generateNewSecret();
         String qrUrl = twoFactorService.getQRCodeUrl("FastTasty", user.getEmail(), tempSecret);
@@ -180,10 +178,9 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         });
         confirmBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-        // BOTÓN CANCELAR ARREGLADO
         Button cancelButton = new Button("Cancelar", e -> {
             dialog.close();
-            login.setEnabled(true); // Reactiva el formulario
+            login.setEnabled(true);
             login.setError(false);
         });
         cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
@@ -218,8 +215,18 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
     }
 
     private void completarLogin(Authentication authResult) {
-        SecurityContextHolder.getContext().setAuthentication(authResult);
+        // 1. Crear contexto de seguridad
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authResult);
+        SecurityContextHolder.setContext(context);
 
+        // 2. GUARDAR EXPLÍCITAMENTE EN LA SESIÓN HTTP
+        // Esto es lo que faltaba para que no te pida login al navegar
+        VaadinServletRequest request = (VaadinServletRequest) VaadinService.getCurrentRequest();
+        VaadinServletResponse response = (VaadinServletResponse) VaadinService.getCurrentResponse();
+        securityContextRepository.saveContext(context, request, response);
+
+        // 3. Redirigir según rol
         if (tieneRol(authResult, "ROLE_ADMIN")) {
             UI.getCurrent().navigate("admin/users");
         } else if (tieneRol(authResult, "ROLE_MANAGER")) {

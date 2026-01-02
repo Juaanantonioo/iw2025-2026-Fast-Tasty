@@ -26,9 +26,9 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException; // 👈 Importante
 import org.springframework.security.core.context.SecurityContextHolder;
 
 @Route("login")
@@ -61,9 +61,12 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
 
         login.addLoginListener(e -> {
             try {
+                // Si el login falla aquí, saltará al catch y liberará el formulario
                 intentarLogin(e.getUsername(), e.getPassword());
-            } catch (BadCredentialsException ex) {
+            } catch (AuthenticationException ex) {
+                // Capturamos CUALQUIER error de autenticación para que no se bloquee
                 login.setError(true);
+                login.setEnabled(true); // Forzamos habilitar por si acaso
             }
         });
 
@@ -90,18 +93,20 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         // 2. Obtener usuario de la BD
         User user = userService.findByUsername(username).orElse(null);
 
+        // Importante: Habilitamos el login aquí porque la autenticación básica ya pasó.
+        // Si no lo hacemos, el formulario podría seguir pensando que está "cargando".
+        login.setEnabled(true);
+
         if (user != null) {
             if (user.getSecret2fa() != null && !user.getSecret2fa().isEmpty()) {
-                // CASO A: Ya lo tiene configurado -> VERIFICAR
                 mostrarDialogoVerificacion(user.getSecret2fa(), authResult);
             } else {
-                // CASO B: No lo tiene -> OBLIGAR A CONFIGURAR
                 mostrarDialogoConfiguracionObligatoria(user, authResult);
             }
         }
     }
 
-    // --- DIÁLOGO 1: SOLO VERIFICAR (Ya lo tiene) ---
+    // --- DIÁLOGO 1: VERIFICAR ---
     private void mostrarDialogoVerificacion(String secret, Authentication authResult) {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Seguridad 2FA Requerida");
@@ -121,15 +126,23 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         verifyButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         verifyButton.addClickShortcut(Key.ENTER);
 
+        // BOTÓN CANCELAR ARREGLADO
+        Button cancelButton = new Button("Cancelar", e -> {
+            dialog.close();
+            login.setEnabled(true); // Reactiva el formulario
+            login.setError(false);  // Quita mensajes de error previos
+            // Opcional: poner el foco de nuevo en el usuario o contraseña si quieres
+        });
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         dialogLayout.add(codeField);
         dialog.add(dialogLayout);
-        dialog.getFooter().add(verifyButton);
+        dialog.getFooter().add(cancelButton, verifyButton);
         dialog.open();
     }
 
-    // --- DIÁLOGO 2: CONFIGURACIÓN OBLIGATORIA (Primera vez) ---
+    // --- DIÁLOGO 2: CONFIGURACIÓN OBLIGATORIA ---
     private void mostrarDialogoConfiguracionObligatoria(User user, Authentication authResult) {
-        // 1. Generar nuevo secreto
         String tempSecret = twoFactorService.generateNewSecret();
         String qrUrl = twoFactorService.getQRCodeUrl("FastTasty", user.getEmail(), tempSecret);
 
@@ -152,10 +165,8 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
             try {
                 int code = Integer.parseInt(codeField.getValue());
                 if (twoFactorService.validateCode(tempSecret, code)) {
-                    // CÓDIGO CORRECTO: Guardamos el secreto en el usuario
                     user.setSecret2fa(tempSecret);
-                    userService.updateUser(user); // ⚠️ IMPORTANTE: Guardar en BD
-
+                    userService.updateUser(user);
                     dialog.close();
                     completarLogin(authResult);
                 } else {
@@ -169,6 +180,14 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         });
         confirmBtn.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
+        // BOTÓN CANCELAR ARREGLADO
+        Button cancelButton = new Button("Cancelar", e -> {
+            dialog.close();
+            login.setEnabled(true); // Reactiva el formulario
+            login.setError(false);
+        });
+        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
         layout.add(
                 new Paragraph("Por seguridad, debes activar el doble factor."),
                 new Paragraph("1. Escanea este QR con Google Authenticator."),
@@ -178,7 +197,7 @@ public class LoginView extends VerticalLayout implements BeforeEnterObserver {
         );
 
         dialog.add(layout);
-        dialog.getFooter().add(confirmBtn);
+        dialog.getFooter().add(cancelButton, confirmBtn);
         dialog.open();
     }
 

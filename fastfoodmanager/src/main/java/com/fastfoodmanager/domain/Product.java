@@ -47,7 +47,8 @@ public class Product {
     )
     @AttributeOverrides({
             @AttributeOverride(name = "name", column = @Column(name = "ingredient_name")),
-            @AttributeOverride(name = "quantity", column = @Column(name = "quantity"))
+            @AttributeOverride(name = "quantity", column = @Column(name = "quantity")),
+            @AttributeOverride(name = "customizable", column = @Column(name = "customizable"))
     })
     private List<Ingredient> ingredients = new ArrayList<>();
 
@@ -63,11 +64,16 @@ public class Product {
         @Column(nullable = false)
         private double quantity;
 
+        // ⭐ NUEVO CAMPO
+        @Column(nullable = false)
+        private boolean customizable = false;
+
         public Ingredient() {}
 
-        public Ingredient(String name, double quantity) {
+        public Ingredient(String name, double quantity, boolean customizable) {
             this.name = name;
             this.quantity = quantity;
+            this.customizable = customizable;
         }
 
         public String getName() { return name; }
@@ -75,6 +81,9 @@ public class Product {
 
         public double getQuantity() { return quantity; }
         public void setQuantity(double quantity) { this.quantity = quantity; }
+
+        public boolean isCustomizable() { return customizable; }
+        public void setCustomizable(boolean customizable) { this.customizable = customizable; }
 
         @Override
         public boolean equals(Object o) {

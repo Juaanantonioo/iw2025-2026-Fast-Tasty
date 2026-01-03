@@ -6,6 +6,7 @@ import com.fastfoodmanager.domain.FoodType;
 import com.fastfoodmanager.repository.AllergenRepository;
 import com.fastfoodmanager.service.ProductService;
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.grid.Grid;
@@ -49,7 +50,7 @@ public class ProductView extends VerticalLayout {
     private final ComboBox<FoodType> type = new ComboBox<>("Tipo");
     private final MultiSelectComboBox<Allergen> allergens = new MultiSelectComboBox<>("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
-    private final com.vaadin.flow.component.checkbox.Checkbox active = new com.vaadin.flow.component.checkbox.Checkbox("Activo", true);
+    private final Checkbox active = new Checkbox("Activo", true);
 
     // Ingredientes
     private final VerticalLayout ingredientsContainer = new VerticalLayout();
@@ -120,7 +121,7 @@ public class ProductView extends VerticalLayout {
         // Ingredientes
         ingredientsContainer.setPadding(false);
         ingredientsContainer.setSpacing(true);
-        addIngredientBtn.addClickListener(e -> addIngredientRow(null, null));
+        addIngredientBtn.addClickListener(e -> addIngredientRow(null, null, false));
 
         // Configuración Upload de imagen
         imageUpload.setAcceptedFileTypes("image/jpeg", "image/png");
@@ -165,7 +166,6 @@ public class ProductView extends VerticalLayout {
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("720px", 2)
         );
 
-        // Añadimos los ingredientes antes de la imagen
         form.add(name, type, price, description, allergens, active,
                 addIngredientBtn, ingredientsContainer, imageUpload, previewImage);
 
@@ -205,13 +205,13 @@ public class ProductView extends VerticalLayout {
                 current = sel;
                 binder.readBean(current);
 
-                // Ingredientes existentes
                 ingredientsContainer.removeAll();
                 if (current.getIngredients() != null) {
-                    current.getIngredients().forEach(i -> addIngredientRow(i.getName(), i.getQuantity()));
+                    current.getIngredients().forEach(i ->
+                            addIngredientRow(i.getName(), i.getQuantity(), i.isCustomizable())
+                    );
                 }
 
-                // Mostrar imagen del producto
                 if (current.getImage() != null) {
                     String base64 = Base64.getEncoder().encodeToString(current.getImage());
                     previewImage.setSrc("data:image/png;base64," + base64);
@@ -233,7 +233,6 @@ public class ProductView extends VerticalLayout {
                 .bind(Product::getPrice, Product::setPrice);
         binder.forField(active).bind(Product::isActive, Product::setActive);
 
-        // ===== EVENTOS =====
         save.addClickListener(e -> onSave());
         clear.addClickListener(e -> resetForm());
         delete.addClickListener(e -> {
@@ -251,7 +250,7 @@ public class ProductView extends VerticalLayout {
         load();
     }
 
-    private void addIngredientRow(String nameVal, Double quantityVal) {
+    private void addIngredientRow(String nameVal, Double quantityVal, boolean customizableVal) {
         HorizontalLayout row = new HorizontalLayout();
         row.setWidthFull();
         row.setAlignItems(Alignment.CENTER);
@@ -270,9 +269,12 @@ public class ProductView extends VerticalLayout {
         ingredientQty.setWidth("100px");
         if (quantityVal != null) ingredientQty.setValue(quantityVal);
 
+        Checkbox customizable = new Checkbox("Personalizable");
+        customizable.setValue(customizableVal);
+
         Button removeBtn = new Button("❌", e -> ingredientsContainer.remove(row));
 
-        row.add(ingredientName, ingredientQty, removeBtn);
+        row.add(ingredientName, ingredientQty, customizable, removeBtn);
         ingredientsContainer.add(row);
     }
 
@@ -280,19 +282,25 @@ public class ProductView extends VerticalLayout {
         try {
             binder.writeBean(current);
 
-            // Guardar ingredientes
             List<Product.Ingredient> ingredientsList = ingredientsContainer.getChildren()
-                    .map(c -> (HorizontalLayout)c)
+                    .map(c -> (HorizontalLayout) c)
                     .map(row -> {
                         TextField nameField = (TextField) row.getComponentAt(0);
                         NumberField qtyField = (NumberField) row.getComponentAt(1);
+                        Checkbox customField = (Checkbox) row.getComponentAt(2);
+
                         if (nameField.getValue() == null || nameField.getValue().isEmpty()) return null;
+
                         double qty = qtyField.getValue() != null ? qtyField.getValue() : 0;
-                        return new Product.Ingredient(nameField.getValue(), qty);
-                    }).filter(ing -> ing != null).toList();
+                        boolean customizable = customField.getValue();
+
+                        return new Product.Ingredient(nameField.getValue(), qty, customizable);
+                    })
+                    .filter(ing -> ing != null)
+                    .toList();
+
             current.setIngredients(ingredientsList);
 
-            // Guardar imagen
             if (imageBuffer.getInputStream() != null) {
                 try (InputStream is = imageBuffer.getInputStream();
                      ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
@@ -305,11 +313,7 @@ public class ProductView extends VerticalLayout {
             service.save(current);
             Notification.show("Producto guardado");
             load();
-            current = new Product();
-            binder.readBean(current);
-            ingredientsContainer.removeAll();
-            previewImage.setSrc("");
-            imageUpload.clearFileList();
+            resetForm();
         } catch (ValidationException ex) {
             Notification.show("Revisa el formulario");
         } catch (Exception ex) {
@@ -330,7 +334,6 @@ public class ProductView extends VerticalLayout {
         imageUpload.clearFileList();
     }
 
-    // Helpers
     private static String formatMoney(Double value) {
         if (value == null) return "";
         return String.format("%.2f €", value);

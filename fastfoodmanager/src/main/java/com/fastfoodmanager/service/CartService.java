@@ -7,6 +7,7 @@ import org.springframework.web.context.annotation.SessionScope;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @SessionScope
@@ -14,18 +15,48 @@ public class CartService {
 
     private List<OrderItem> items = new ArrayList<>();
 
+    /**
+     * Compara dos productos para saber si son EXACTAMENTE iguales,
+     * incluyendo ingredientes personalizados.
+     */
+    private boolean areProductsEqual(Product p1, Product p2) {
+        if (p1 == null || p2 == null) return false;
+
+        // Comparar campos básicos
+        if (!Objects.equals(p1.getName(), p2.getName())) return false;
+        if (!Objects.equals(p1.getPrice(), p2.getPrice())) return false;
+        if (!Objects.equals(p1.getDescription(), p2.getDescription())) return false;
+
+        // Comparar ingredientes
+        if (p1.getIngredients().size() != p2.getIngredients().size()) return false;
+
+        for (int i = 0; i < p1.getIngredients().size(); i++) {
+            var ing1 = p1.getIngredients().get(i);
+            var ing2 = p2.getIngredients().get(i);
+
+            if (!Objects.equals(ing1.getName(), ing2.getName())) return false;
+            if (ing1.getQuantity() != ing2.getQuantity()) return false;
+            if (ing1.isCustomizable() != ing2.isCustomizable()) return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Añade un producto al carrito. Si ya existe uno EXACTAMENTE igual,
+     * aumenta la cantidad. Si no, crea un nuevo OrderItem.
+     */
     public void addProduct(Product product) {
         if (product == null) return;
 
-        // Buscar si el producto ya existe en el carrito
         for (OrderItem item : items) {
-            if (item.getProduct() != null && item.getProduct().getId().equals(product.getId())) {
+            if (areProductsEqual(item.getProduct(), product)) {
                 item.setQuantity(item.getQuantity() + 1);
                 return;
             }
         }
 
-        // Si no existe, crear nuevo item
+        // Si no existe un item igual, añadir uno nuevo
         items.add(new OrderItem(product, 1));
     }
 
@@ -37,8 +68,7 @@ public class CartService {
         if (item == null || item.getProduct() == null) return;
 
         for (OrderItem cartItem : items) {
-            if (cartItem.getProduct() != null &&
-                cartItem.getProduct().getId().equals(item.getProduct().getId())) {
+            if (areProductsEqual(cartItem.getProduct(), item.getProduct())) {
                 if (cartItem.getQuantity() > 1) {
                     cartItem.setQuantity(cartItem.getQuantity() - 1);
                 } else {
@@ -53,8 +83,7 @@ public class CartService {
         if (item == null || item.getProduct() == null) return;
 
         items.removeIf(cartItem ->
-            cartItem.getProduct() != null &&
-            cartItem.getProduct().getId().equals(item.getProduct().getId())
+                areProductsEqual(cartItem.getProduct(), item.getProduct())
         );
     }
 

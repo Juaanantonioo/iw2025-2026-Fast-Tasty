@@ -18,7 +18,6 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.text.NumberFormat;
@@ -108,7 +107,6 @@ public class CartaView extends VerticalLayout {
 
         add(hero, productGrid);
 
-        // 👉 SOLO food types al inicio
         showFoodTypes();
     }
 
@@ -131,7 +129,6 @@ public class CartaView extends VerticalLayout {
                     .set("max-width", "260px")
                     .set("background-color", "white");
 
-            // Imagen de la categoría
             Image img = new Image();
             img.setWidth("180px");
             img.getStyle().set("border-radius", "12px");
@@ -140,10 +137,9 @@ public class CartaView extends VerticalLayout {
                 String base64 = Base64.getEncoder().encodeToString(type.getImage());
                 img.setSrc("data:image/png;base64," + base64);
             } else {
-                img.setSrc("path/to/default/category.png"); // ruta a imagen por defecto
+                img.setSrc("path/to/default/category.png");
             }
 
-            // Nombre
             H1 name = new H1(type.getName());
             name.getStyle()
                     .set("color", "#ff7b00")
@@ -176,7 +172,7 @@ public class CartaView extends VerticalLayout {
     }
 
     /* =========================
-       PRODUCT CARDS (SIN CAMBIOS)
+       PRODUCT CARD (SIN INGREDIENTES)
        ========================= */
 
     private Div createProductCard(Product product) {
@@ -213,6 +209,7 @@ public class CartaView extends VerticalLayout {
                     "Añadido al pedido", 2000, Notification.Position.MIDDLE);
             n.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         });
+
         styleButton(add);
 
         Button details =
@@ -224,7 +221,7 @@ public class CartaView extends VerticalLayout {
     }
 
     /* =========================
-       DETAILS DIALOG (IGUAL)
+       DETAILS DIALOG
        ========================= */
 
     private void openDetailsDialog(Product product) {
@@ -246,9 +243,9 @@ public class CartaView extends VerticalLayout {
         Paragraph price =
                 new Paragraph("Precio: " + currency.format(product.getPrice()));
 
-        // =========================
-        // INGREDIENTES CON CANTIDAD
-        // =========================
+        /* =========================
+           INGREDIENTES NORMALES
+           ========================= */
         VerticalLayout ingredientsLayout = new VerticalLayout();
         ingredientsLayout.setSpacing(false);
         ingredientsLayout.setPadding(false);
@@ -256,7 +253,6 @@ public class CartaView extends VerticalLayout {
         if (product.getIngredients() != null && !product.getIngredients().isEmpty()) {
             product.getIngredients().forEach(ingredient -> {
 
-                // Contenedor horizontal
                 Div row = new Div();
                 row.getStyle()
                         .set("display", "flex")
@@ -265,18 +261,56 @@ public class CartaView extends VerticalLayout {
                         .set("gap", "12px")
                         .set("width", "100%");
 
-                // Nombre ingrediente
                 Span name = new Span(ingredient.getName());
                 name.getStyle().set("flex", "1");
 
-                // Cantidad (empieza en la actual o 0)
                 Span quantity = new Span(String.valueOf((int) ingredient.getQuantity()));
                 quantity.getStyle()
                         .set("min-width", "24px")
                         .set("text-align", "center")
                         .set("font-weight", "bold");
 
-                // Botón -
+                row.add(name, quantity);
+                ingredientsLayout.add(row);
+            });
+        } else {
+            ingredientsLayout.add(new Span("— Sin ingredientes —"));
+        }
+
+        /* =========================
+           INGREDIENTES PERSONALIZABLES
+           ========================= */
+        VerticalLayout customizableLayout = new VerticalLayout();
+        customizableLayout.setSpacing(false);
+        customizableLayout.setPadding(false);
+
+        List<Product.Ingredient> customizableIngredients =
+                product.getIngredients().stream()
+                        .filter(Product.Ingredient::isCustomizable)
+                        .toList();
+
+        if (customizableIngredients.isEmpty()) {
+            customizableLayout.add(new Span("— No hay ingredientes personalizables —"));
+        } else {
+            customizableIngredients.forEach(ingredient -> {
+
+                Div row = new Div();
+                row.getStyle()
+                        .set("display", "flex")
+                        .set("align-items", "center")
+                        .set("justify-content", "space-between")
+                        .set("gap", "12px")
+                        .set("width", "100%");
+
+                Span name = new Span(ingredient.getName());
+                name.getStyle().set("flex", "1");
+
+                Span quantity = new Span(String.valueOf((int) ingredient.getQuantity()));
+                quantity.getStyle()
+                        .set("min-width", "24px")
+                        .set("text-align", "center")
+                        .set("font-weight", "bold");
+
                 Button minus = new Button("−");
                 minus.addClickListener(e -> {
                     int q = Integer.parseInt(quantity.getText());
@@ -287,7 +321,6 @@ public class CartaView extends VerticalLayout {
                     }
                 });
 
-                // Botón +
                 Button plus = new Button("+");
                 plus.addClickListener(e -> {
                     int q = Integer.parseInt(quantity.getText());
@@ -298,24 +331,17 @@ public class CartaView extends VerticalLayout {
                     }
                 });
 
-                // Estilos botones
-                minus.getStyle()
-                        .set("min-width", "32px")
-                        .set("background-color", "#eee");
-                plus.getStyle()
-                        .set("min-width", "32px")
-                        .set("background-color", "#eee");
+                minus.getStyle().set("min-width", "32px").set("background-color", "#eee");
+                plus.getStyle().set("min-width", "32px").set("background-color", "#eee");
 
                 row.add(name, minus, quantity, plus);
-                ingredientsLayout.add(row);
+                customizableLayout.add(row);
             });
-        } else {
-            ingredientsLayout.add(new Span("— Sin información —"));
         }
 
-        // =========================
-        // ALÉRGENOS
-        // =========================
+        /* =========================
+           ALÉRGENOS
+           ========================= */
         UnorderedList allergens = new UnorderedList();
         if (product.getAllergens() != null && !product.getAllergens().isEmpty()) {
             product.getAllergens()
@@ -330,6 +356,8 @@ public class CartaView extends VerticalLayout {
                 price,
                 new H3("Ingredientes"),
                 ingredientsLayout,
+                new H3("Personaliza tu pedido"),
+                customizableLayout,
                 new H3("Alérgenos"),
                 allergens
         );
@@ -337,7 +365,31 @@ public class CartaView extends VerticalLayout {
         dialog.add(content);
 
         Button add = new Button("Agregar al Pedido", e -> {
-            cartService.addProduct(product);
+
+            // 1️⃣ Crear un clon del producto
+            Product customized = new Product();
+            customized.setName(product.getName());
+            customized.setDescription(product.getDescription());
+            customized.setPrice(product.getPrice());
+            customized.setType(product.getType());
+            customized.setAllergens(product.getAllergens());
+            customized.setImage(product.getImage());
+            customized.setActive(product.isActive());
+
+            // 2️⃣ Clonar ingredientes con cantidades modificadas
+            List<Product.Ingredient> clonedIngredients = product.getIngredients().stream()
+                    .map(ing -> new Product.Ingredient(
+                            ing.getName(),
+                            ing.getQuantity(),      // ← cantidad modificada por el usuario
+                            ing.isCustomizable()
+                    ))
+                    .toList();
+
+            customized.setIngredients(clonedIngredients);
+
+            // 3️⃣ Añadir al carrito el producto personalizado
+            cartService.addProduct(customized);
+
             dialog.close();
             Notification n = Notification.show(
                     "Añadido al pedido", 2000, Notification.Position.MIDDLE);
@@ -351,7 +403,7 @@ public class CartaView extends VerticalLayout {
     }
 
     /* =========================
-       FILTER (INTOCADO)
+       FILTER
        ========================= */
 
     private void openFilterMenu() {

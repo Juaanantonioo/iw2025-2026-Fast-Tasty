@@ -1,11 +1,6 @@
 package com.fastfoodmanager.service;
 
-import com.fastfoodmanager.domain.Order;
-import com.fastfoodmanager.domain.OrderItem;
-import com.fastfoodmanager.domain.OrderType;
-import com.fastfoodmanager.domain.Product;
-import com.fastfoodmanager.domain.User;
-import com.fastfoodmanager.domain.User.Role;
+import com.fastfoodmanager.domain.*;
 import com.fastfoodmanager.repository.OrderRepository;
 import com.fastfoodmanager.repository.ProductRepository;
 import org.slf4j.Logger;
@@ -19,16 +14,15 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
-
 @Service
 public class OrderService {
 
     private static final Logger log = LoggerFactory.getLogger(OrderService.class);
 
-    private final ProductRepository productRepo;
     private final OrderRepository orderRepo;
     private final UserService userService;
     private final EmailService emailService;
+    private final ProductRepository productRepo;
 
     public OrderService(OrderRepository orderRepo,
                         UserService userService,
@@ -91,7 +85,6 @@ public class OrderService {
         order.setDeliveryTo(null);
         order.setPickedUpAt(null);
 
-        // pago simulado: por defecto NO pagado hasta que el usuario "pague"
         order.setPaid(false);
         order.setPaidAt(null);
 
@@ -101,11 +94,9 @@ public class OrderService {
 
         order.recalcTotal();
 
-        // Guardar primero para tener ID
         order = orderRepo.save(order);
         log.info("Pedido #{} creado exitosamente", order.getId());
 
-        // Enviar email si está solicitado (no se guarda en Order, solo se ejecuta)
         if (enviarEmail && user.getEmail() != null && !user.getEmail().trim().isEmpty()) {
             try {
                 emailService.enviarTicketPedido(order, user.getEmail());
@@ -158,7 +149,7 @@ public class OrderService {
     }
 
     // =========
-    // Fetch pedido con items+product (evita LazyInitialization)
+    // Fetch pedido con items
     // =========
     @Transactional(readOnly = true)
     public Order findWithItemsOrThrow(Long orderId) {
@@ -173,8 +164,7 @@ public class OrderService {
         Order o = orderRepo.findWithItemsById(orderId)
                 .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado."));
 
-        if (o.getCustomer() == null || o.getCustomer().getUsername() == null
-                || !customerUsername.equals(o.getCustomer().getUsername())) {
+        if (!customerUsername.equals(o.getCustomer().getUsername())) {
             throw new SecurityException("No puedes modificar pedidos de otro usuario.");
         }
 
@@ -182,8 +172,8 @@ public class OrderService {
             throw new IllegalStateException("Solo se puede modificar/cancelar un pedido si está pagado.");
         }
 
-        if (o.getStatus() == null || !"ENVIADO".equalsIgnoreCase(o.getStatus())) {
-            throw new IllegalStateException("Solo se puede modificar/cancelar si el pedido está ENVIADO (antes de cocina).");
+        if (!"ENVIADO".equalsIgnoreCase(o.getStatus())) {
+            throw new IllegalStateException("Solo se puede modificar/cancelar si el pedido está ENVIADO.");
         }
 
         return o;
@@ -207,67 +197,35 @@ public class OrderService {
     }
 
     // =========
-    // Cliente: modificar cantidades y permitir añadir/quitar productos antes de cocina
+    // Cliente: modificar cantidades
     // =========
     @Transactional
-    public void updatePaidOrderItemsBeforeKitchen(Long orderId, Map<Long, Integer> productIdToQty) {
+    public void updatePaidOrderItemsBeforeKitchen(Long orderId, Map<Integer, Integer> indexToQty) {
         String username = currentUsername();
         if (username == null) throw new IllegalStateException("Usuario no autenticado.");
 
-        if (productIdToQty == null || productIdToQty.isEmpty()) {
+        Order o = requireCustomerOrderEditable(orderId, username);
+
+        if (indexToQty == null || indexToQty.isEmpty()) {
             throw new IllegalArgumentException("No hay cambios que aplicar.");
         }
 
-        Order o = requireCustomerOrderEditable(orderId, username);
+        List<OrderItem> items = o.getItems();
 
-        if (o.getItems() == null) {
-            o.setItems(new ArrayList<>());
-        }
+        for (Map.Entry<Integer, Integer> entry : indexToQty.entrySet()) {
+            int index = entry.getKey();
+            int qty = entry.getValue();
 
-        // IDs actuales en el pedido
-        Set<Long> currentProductIds = o.getItems().stream()
-                .map(item -> item.getProduct() != null ? item.getProduct().getId() : null)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+            if (index < 0 || index >= items.size()) continue;
 
-        // 1) Actualizar cantidades / eliminar líneas existentes
-        Iterator<OrderItem> it = o.getItems().iterator();
-        while (it.hasNext()) {
-            OrderItem item = it.next();
-            Long pid = (item.getProduct() != null) ? item.getProduct().getId() : null;
-            if (pid == null) continue;
-
-            if (productIdToQty.containsKey(pid)) {
-                Integer newQty = productIdToQty.get(pid);
-                if (newQty == null || newQty <= 0) {
-                    it.remove();
-                } else {
-                    item.setQuantity(newQty);
-                }
+            if (qty <= 0) {
+                items.remove(index);
+            } else {
+                items.get(index).setQuantity(qty);
             }
         }
 
-        // 2) Añadir nuevos productos (que no estaban)
-        for (Map.Entry<Long, Integer> entry : productIdToQty.entrySet()) {
-            Long productId = entry.getKey();
-            Integer qty = entry.getValue();
-
-            if (qty != null && qty > 0 && !currentProductIds.contains(productId)) {
-                Product product = productRepo.findById(productId)
-                        .orElseThrow(() -> new NoSuchElementException("Producto no encontrado: " + productId));
-
-                // Usa el constructor para fijar unitPrice = product.getPrice()
-                OrderItem newItem = new OrderItem(product, qty);
-                newItem.setOrder(o);
-                o.getItems().add(newItem);
-            }
-        }
-
-        // Asegurar bidireccionalidad y recalcular total
-        o.getItems().forEach(i -> i.setOrder(o));
-        o.recalcTotal();
-
-        // Importante: NO tocamos paid aquí (así no te sale el mensaje de "NO pagado" por este motivo)
+        o.setItems(items);
         orderRepo.save(o);
     }
 
@@ -283,36 +241,27 @@ public class OrderService {
         for (Order o : mine) map.put(o.getId(), o);
         return new ArrayList<>(map.values());
     }
+
     // =========
-// Productos activos para el diálogo de edición (ClientOrdersView)
-// =========
+    // Productos activos para añadir a un pedido
+    // =========
     @Transactional(readOnly = true)
     public List<Product> findActiveProductsForEdit() {
-        // Opción simple: filtrar por active=true
-        // (si luego quieres además filtrar por stock>0, te lo ajusto)
         return productRepo.findAll().stream()
                 .filter(Product::isActive)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     // =========
-// Repartidor - cargar pedidos con detalles para evitar LazyInitialization
-// =========
+    // Repartidor - cargar pedidos con detalles
+    // =========
     @Transactional(readOnly = true)
     public List<Order> findForDeliveryWithDetails(String deliveryUsername) {
         List<Order> orders = orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
 
-        // Para cada pedido, reemplazamos items por la versión con fetch (items+product)
         for (Order o : orders) {
             Order full = orderRepo.findWithItemsById(o.getId()).orElse(o);
-
-            // Seteamos items ya inicializados
             o.setItems(full.getItems());
-
-            // Forzamos inicialización del customer por seguridad
-            if (o.getCustomer() != null) {
-                o.getCustomer().getUsername();
-            }
         }
         return orders;
     }
@@ -322,34 +271,34 @@ public class OrderService {
         Order order = orderRepo.findWithItemsById(orderId)
                 .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado: " + orderId));
 
-        if (order.getDeliveryTo() == null || !deliveryUsername.equals(order.getDeliveryTo())) {
+        if (!deliveryUsername.equals(order.getDeliveryTo())) {
             throw new SecurityException("Este pedido no está asignado a ti");
         }
 
-        // Forzar init de customer
+        // 🔥 Forzar carga del cliente
         if (order.getCustomer() != null) {
             order.getCustomer().getUsername();
+            order.getCustomer().getEmail();
         }
 
-        // Forzar init de productos por seguridad
-        if (order.getItems() != null) {
-            for (OrderItem item : order.getItems()) {
-                if (item.getProduct() != null) {
-                    item.getProduct().getName();
-                }
+        // 🔥 Forzar carga de ingredientes del snapshot
+        for (OrderItem item : order.getItems()) {
+            if (item.getProduct() != null && item.getProduct().getIngredients() != null) {
+                item.getProduct().getIngredients().size();
             }
         }
 
         return order;
     }
+
+    // =========
+    // Cocina
+    // =========
     @Transactional
     public void sendToKitchen(Long orderId, String operatorUsername) {
         orderRepo.findById(orderId).ifPresent(o -> {
             if (!"ENVIADO".equalsIgnoreCase(o.getStatus())) {
                 throw new IllegalStateException("Solo se puede mandar a cocina un pedido ENVIADO.");
-            }
-            if ("CANCELADO".equalsIgnoreCase(o.getStatus())) {
-                throw new IllegalStateException("No se puede mandar a cocina un pedido cancelado.");
             }
 
             if (o.getAssignedTo() == null) o.setAssignedTo(operatorUsername);
@@ -380,6 +329,9 @@ public class OrderService {
         });
     }
 
+    // =========
+    // Operario recoge pedidos listos
+    // =========
     public List<Order> findReadyForOperator(String operatorUsername) {
         return orderRepo.findByAssignedToAndStatus(operatorUsername, "LISTO");
     }
@@ -391,14 +343,10 @@ public class OrderService {
     // =========
     // Repartidor
     // =========
-    public List<Order> findForDelivery(String deliveryUsername) {
-        return orderRepo.findByDeliveryToAndStatus(deliveryUsername, "EN REPARTO");
-    }
-
     @Transactional
     public void assignFreeDeliveryAndSend(Long orderId, String operatorUsername) {
         orderRepo.findById(orderId).ifPresent(o -> {
-            if (o.getAssignedTo() == null || !operatorUsername.equals(o.getAssignedTo())) {
+            if (!operatorUsername.equals(o.getAssignedTo())) {
                 throw new IllegalStateException("Solo el operario asignado puede gestionar este pedido.");
             }
             if (!"LISTO".equalsIgnoreCase(o.getStatus())) {
@@ -408,7 +356,7 @@ public class OrderService {
                 throw new IllegalStateException("Solo los pedidos a domicilio necesitan repartidor.");
             }
 
-            List<User> deliveries = userService.findByRole(Role.DELIVERY);
+            List<User> deliveries = userService.findByRole(User.Role.DELIVERY);
             String free = deliveries.stream()
                     .map(User::getUsername)
                     .filter(u -> !orderRepo.existsByDeliveryToAndStatus(u, "EN REPARTO"))
@@ -429,7 +377,7 @@ public class OrderService {
             if (!"EN REPARTO".equalsIgnoreCase(o.getStatus())) {
                 throw new IllegalStateException("Solo se puede entregar un pedido EN REPARTO.");
             }
-            if (o.getDeliveryTo() == null || !deliveryUsername.equals(o.getDeliveryTo())) {
+            if (!deliveryUsername.equals(o.getDeliveryTo())) {
                 throw new IllegalStateException("Este pedido no está asignado a ti.");
             }
             o.setStatus("ENTREGADO");
@@ -438,12 +386,38 @@ public class OrderService {
     }
 
     // =========
+    // Valoración
+    // =========
+    @Transactional
+    public void saveRating(Long orderId, int stars, String username) {
+        if (stars < 1 || stars > 5) {
+            throw new IllegalArgumentException("La valoración debe ser entre 1 y 5 estrellas");
+        }
+
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("Pedido no encontrado"));
+
+        // Validar que el pedido pertenece al usuario
+        if (!order.getCustomer().getUsername().equals(username)) {
+            throw new SecurityException("No puedes valorar un pedido que no es tuyo");
+        }
+
+        // Evitar doble valoración
+        if (order.getRating() != null) {
+            throw new IllegalStateException("Este pedido ya ha sido valorado");
+        }
+
+        order.setRating(stars);
+        orderRepo.save(order);
+    }
+
+    // =========
     // Pickup
     // =========
     @Transactional
     public void markAsPickedUp(Long orderId, String operatorUsername) {
         orderRepo.findById(orderId).ifPresent(o -> {
-            if (o.getAssignedTo() == null || !operatorUsername.equals(o.getAssignedTo())) {
+            if (!operatorUsername.equals(o.getAssignedTo())) {
                 throw new IllegalStateException("Solo el operario asignado puede gestionar este pedido.");
             }
             if (!"LISTO".equalsIgnoreCase(o.getStatus())) {

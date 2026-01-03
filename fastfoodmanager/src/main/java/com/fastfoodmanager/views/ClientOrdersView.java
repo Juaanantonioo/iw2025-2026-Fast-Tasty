@@ -95,7 +95,7 @@ public class ClientOrdersView extends VerticalLayout {
     private String formatItemsSafe(List<OrderItem> items) {
         if (items == null || items.isEmpty()) return "-";
         return items.stream()
-                .map(i -> (i.getProduct() != null ? i.getProduct().getName() : "Producto") + " x" + i.getQuantity())
+                .map(i -> i.getProduct().getName() + " x" + i.getQuantity())
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("-");
     }
@@ -115,8 +115,7 @@ public class ClientOrdersView extends VerticalLayout {
                 Notification.show("Pedido cancelado", 2500, Notification.Position.BOTTOM_START);
                 refresh();
             } catch (Exception ex) {
-                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo cancelar",
-                        3500, Notification.Position.BOTTOM_START);
+                Notification.show(ex.getMessage(), 3500, Notification.Position.BOTTOM_START);
             }
         });
 
@@ -137,30 +136,29 @@ public class ClientOrdersView extends VerticalLayout {
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Modificar pedido #" + o.getId());
 
-        // Form con líneas actuales
         FormLayout form = new FormLayout();
         form.setWidth("650px");
 
-        Map<Long, IntegerField> fields = new LinkedHashMap<>();
+        // 🔥 Ahora usamos el índice del item, no el ID del producto
+        Map<Integer, IntegerField> fields = new LinkedHashMap<>();
 
-        if (fresh.getItems() != null) {
-            for (OrderItem item : fresh.getItems()) {
-                if (item.getProduct() == null || item.getProduct().getId() == null) continue;
+        List<OrderItem> items = fresh.getItems();
 
-                Long pid = item.getProduct().getId();
-                String label = (item.getProduct().getName() != null ? item.getProduct().getName() : "Producto");
+        for (int index = 0; index < items.size(); index++) {
+            OrderItem item = items.get(index);
 
-                IntegerField qty = new IntegerField(label);
-                qty.setMin(0);
-                qty.setStepButtonsVisible(true);
-                qty.setValue(item.getQuantity());
+            String label = item.getProduct().getName();
 
-                fields.put(pid, qty);
-                form.add(qty);
-            }
+            IntegerField qty = new IntegerField(label);
+            qty.setMin(0);
+            qty.setStepButtonsVisible(true);
+            qty.setValue(item.getQuantity());
+
+            fields.put(index, qty);
+            form.add(qty);
         }
 
-        // Sección para añadir productos
+        // Sección para añadir productos nuevos (estos sí vienen de Product real)
         ComboBox<Product> productBox = new ComboBox<>("Añadir producto");
         productBox.setWidthFull();
         productBox.setItemLabelGenerator(p -> p.getName() + " (€ " + String.format("%.2f", p.getPrice()) + ")");
@@ -176,7 +174,8 @@ public class ClientOrdersView extends VerticalLayout {
         Button addBtn = new Button("Añadir", ev -> {
             Product p = productBox.getValue();
             Integer q = addQty.getValue();
-            if (p == null || p.getId() == null) {
+
+            if (p == null) {
                 Notification.show("Selecciona un producto", 2000, Notification.Position.BOTTOM_START);
                 return;
             }
@@ -185,23 +184,15 @@ public class ClientOrdersView extends VerticalLayout {
                 return;
             }
 
-            Long pid = p.getId();
+            // Añadir al final como nueva línea
+            int newIndex = fields.size();
 
-            // Si ya existe en el pedido, sumamos cantidad
-            if (fields.containsKey(pid)) {
-                IntegerField f = fields.get(pid);
-                Integer current = f.getValue();
-                f.setValue((current == null ? 0 : current) + q);
-                return;
-            }
-
-            // Si no existía, lo creamos como nuevo campo
             IntegerField qty = new IntegerField(p.getName());
             qty.setMin(0);
             qty.setStepButtonsVisible(true);
             qty.setValue(q);
 
-            fields.put(pid, qty);
+            fields.put(newIndex, qty);
             form.add(qty);
 
             productBox.clear();
@@ -217,22 +208,21 @@ public class ClientOrdersView extends VerticalLayout {
 
         guardar.addClickListener(ev -> {
             try {
-                Map<Long, Integer> map = new LinkedHashMap<>();
-                for (Map.Entry<Long, IntegerField> en : fields.entrySet()) {
+                Map<Integer, Integer> map = new LinkedHashMap<>();
+
+                for (Map.Entry<Integer, IntegerField> en : fields.entrySet()) {
                     Integer v = en.getValue().getValue();
                     map.put(en.getKey(), v == null ? 0 : v);
                 }
 
                 orderService.updatePaidOrderItemsBeforeKitchen(o.getId(), map);
 
-                // ✅ Mensaje limpio (sin “se ha marcado como NO pagado”)
                 Notification.show("Pedido actualizado", 2500, Notification.Position.BOTTOM_START);
 
                 dialog.close();
                 refresh();
             } catch (Exception ex) {
-                Notification.show(ex.getMessage() != null ? ex.getMessage() : "No se pudo modificar",
-                        3500, Notification.Position.BOTTOM_START);
+                Notification.show(ex.getMessage(), 3500, Notification.Position.BOTTOM_START);
             }
         });
 

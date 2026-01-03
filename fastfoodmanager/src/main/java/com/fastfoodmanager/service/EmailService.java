@@ -147,7 +147,6 @@ public class EmailService {
 
         contenido.append("NÚMERO DE PEDIDO: ").append(pedido.getId()).append("\n");
 
-        // CORRECCIÓN: Usar LocalDateTime en lugar de Date
         LocalDateTime fechaCreacion = pedido.getCreatedAt();
         if (fechaCreacion != null) {
             contenido.append("FECHA Y HORA: ").append(fechaCreacion.format(DATE_FORMATTER)).append("\n");
@@ -157,7 +156,9 @@ public class EmailService {
 
         contenido.append("CLIENTE: ").append(pedido.getCustomer().getUsername()).append("\n");
         contenido.append("EMAIL: ").append(pedido.getCustomer().getEmail()).append("\n");
-        contenido.append("TIPO DE PEDIDO: ").append(pedido.getOrderType() == OrderType.PICKUP ? "RECOGER EN LOCAL" : "A DOMICILIO").append("\n");
+        contenido.append("TIPO DE PEDIDO: ").append(
+                pedido.getOrderType() == OrderType.PICKUP ? "RECOGER EN LOCAL" : "A DOMICILIO"
+        ).append("\n");
 
         if (pedido.getDeliveryAddress() != null && !pedido.getDeliveryAddress().isEmpty()) {
             contenido.append("DIRECCIÓN DE ENTREGA: ").append(pedido.getDeliveryAddress()).append("\n");
@@ -170,11 +171,31 @@ public class EmailService {
 
         List<OrderItem> items = pedido.getItems();
         for (OrderItem item : items) {
-            contenido.append(String.format("%-30s %3d x €%7.2f = €%7.2f%n",
+
+            // Línea principal del producto
+            contenido.append(String.format(
+                    "%-30s %3d x €%7.2f = €%7.2f%n",
                     item.getProduct().getName(),
                     item.getQuantity(),
                     item.getUnitPrice(),
-                    item.getSubtotal()));
+                    item.getSubtotal()
+            ));
+
+            // 🔥 INGREDIENTES DEL SNAPSHOT
+            if (item.getProduct().getIngredients() != null && !item.getProduct().getIngredients().isEmpty()) {
+                contenido.append("    Ingredientes:\n");
+
+                for (var ing : item.getProduct().getIngredients()) {
+                    contenido.append(String.format(
+                            "      - %-20s Cantidad: %s%s%n",
+                            ing.getName(),
+                            (int) ing.getQuantity(),
+                            ing.isCustomizable() ? " (personalizable)" : ""
+                    ));
+                }
+            }
+
+            contenido.append("\n");
         }
 
         contenido.append("-".repeat(50)).append("\n");
@@ -200,5 +221,79 @@ public class EmailService {
         contenido.append("Este es un ticket generado automáticamente.\n");
 
         return contenido.toString();
+    }
+
+    public void enviarConfirmacionEntrega(Order pedido) {
+        try {
+            String email = pedido.getCustomer().getEmail();
+            log.info("EMAIL DEBUG → Cliente: {}", pedido.getCustomer());
+            log.info("EMAIL DEBUG → Email: {}", pedido.getCustomer().getEmail());
+            log.info("EMAIL DEBUG → Items: {}", pedido.getItems().size());
+            if (email == null || email.isBlank()) return;
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(email);
+            message.setSubject("Tu pedido #" + pedido.getId() + " ha sido ENTREGADO ✔");
+            message.setFrom("noreply@fasttasty.com");
+
+            message.setText(construirContenidoConfirmacionEntrega(pedido));
+
+            mailSender.send(message);
+            log.info("📨 Email de confirmación de entrega enviado a {}", email);
+
+        } catch (Exception e) {
+            log.error("❌ Error enviando email de entrega: {}", e.getMessage());
+        }
+    }
+
+    private String construirContenidoConfirmacionEntrega(Order pedido) {
+        StringBuilder c = new StringBuilder();
+
+        c.append("=".repeat(50)).append("\n");
+        c.append("        FASTTASTY - CONFIRMACIÓN DE ENTREGA\n");
+        c.append("=".repeat(50)).append("\n\n");
+
+        c.append("Hola ").append(pedido.getCustomer().getUsername()).append(",\n\n");
+        c.append("Tu pedido #").append(pedido.getId()).append(" ha sido ENTREGADO correctamente.\n");
+        c.append("Esperamos que disfrutes tu comida 🍔🍟\n\n");
+
+        c.append("DETALLE DEL PEDIDO:\n");
+        c.append("-".repeat(50)).append("\n");
+
+        for (OrderItem item : pedido.getItems()) {
+            c.append(String.format("%s x%d - €%.2f\n",
+                    item.getProduct().getName(),
+                    item.getQuantity(),
+                    item.getSubtotal()
+            ));
+
+            if (item.getProduct().getIngredients() != null) {
+                c.append("   Ingredientes:\n");
+                for (var ing : item.getProduct().getIngredients()) {
+                    c.append(String.format(
+                            "     - %s: %d%s\n",
+                            ing.getName(),
+                            (int) ing.getQuantity(),
+                            ing.isCustomizable() ? " (personalizable)" : ""
+                    ));
+                }
+            }
+
+            c.append("\n");
+        }
+
+        c.append("-".repeat(50)).append("\n");
+        c.append(String.format("TOTAL PAGADO: €%.2f\n", pedido.getTotal()));
+        c.append("=".repeat(50)).append("\n\n");
+
+        // ⭐ NUEVO SISTEMA DE VALORACIÓN (solo un enlace)
+        c.append("VALORA TU EXPERIENCIA:\n");
+        c.append("Haz clic aquí para dejarnos tu valoración:\n");
+        c.append("➡ http://fasttasty.com/rating?order=").append(pedido.getId()).append("\n\n");
+
+        c.append("Gracias por confiar en FastTasty ❤️\n");
+        c.append("Tu opinión nos ayuda a mejorar.\n");
+
+        return c.toString();
     }
 }

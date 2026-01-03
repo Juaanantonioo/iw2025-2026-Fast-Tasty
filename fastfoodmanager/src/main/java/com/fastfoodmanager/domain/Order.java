@@ -13,33 +13,31 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Tipo del pedido: recoger en local o domicilio
+    // Tipo del pedido
     @Enumerated(EnumType.STRING)
     @Column(name = "order_type", nullable = false)
     private OrderType orderType = OrderType.PICKUP;
+
     // Enviar email de confirmación
     @Column(name = "send_email", nullable = false)
     private boolean sendEmail = false;
 
-    // Dirección para domicilio (opcional)
+    // Dirección para domicilio
     @Column(name = "delivery_address")
     private String deliveryAddress;
 
-    // Cliente que realiza el pedido
+    // Cliente
     @ManyToOne(optional = false)
     private User customer;
 
-    // Flujo: ENVIADO -> EN COCINA -> LISTO -> [EN REPARTO -> ENTREGADO] o [RECOGIDO]
+    // Estado del pedido
     @Column(nullable = false)
     private String status = "ENVIADO";
 
-    // Operario asignado (username)
     private String assignedTo;
-
-    // Repartidor asignado (username)
     private String deliveryTo;
 
-    // Pago simulado
+    // Pago
     @Column(nullable = false)
     private boolean paid = false;
 
@@ -53,12 +51,16 @@ public class Order {
     private LocalDateTime cookedAt;
 
     private LocalDateTime createdAt = LocalDateTime.now();
-
-    // Fecha de recogida (para pedidos PICKUP)
     private LocalDateTime pickedUpAt;
 
     private Double total = 0.0;
 
+    // Valoración del pedido
+    @Column(name = "rating")
+    private Integer rating; // 1 a 5 estrellas
+
+
+    // Items del pedido (cada uno contiene ProductSnapshot)
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -66,27 +68,31 @@ public class Order {
 
     public Order(User customer, List<OrderItem> items) {
         this.customer = customer;
-        if (items != null) {
-            this.items = items;
-            this.items.forEach(i -> i.setOrder(this));
-        }
-        recalcTotal();
+        setItems(items); // Usa el setter para asegurar consistencia
     }
+
     // Recalcula el total del pedido
     public void recalcTotal() {
-        if (this.items == null || this.items.isEmpty()) {
+        if (items == null || items.isEmpty()) {
             this.total = 0.0;
             return;
         }
-        this.total = this.items.stream()
+        this.total = items.stream()
                 .mapToDouble(OrderItem::getSubtotal)
                 .sum();
     }
+
+    // =========================
+    // GETTERS Y SETTERS
+    // =========================
 
     public Long getId() { return id; }
 
     public OrderType getOrderType() { return orderType; }
     public void setOrderType(OrderType orderType) { this.orderType = orderType; }
+
+    public boolean isSendEmail() { return sendEmail; }
+    public void setSendEmail(boolean sendEmail) { this.sendEmail = sendEmail; }
 
     public String getDeliveryAddress() { return deliveryAddress; }
     public void setDeliveryAddress(String deliveryAddress) { this.deliveryAddress = deliveryAddress; }
@@ -128,10 +134,13 @@ public class Order {
     public void setTotal(Double total) { this.total = total; }
 
     public List<OrderItem> getItems() { return items; }
+
     public void setItems(List<OrderItem> items) {
         this.items = (items != null) ? items : new ArrayList<>();
         this.items.forEach(i -> i.setOrder(this));
         recalcTotal();
     }
 
+    public Integer getRating() { return rating; }
+    public void setRating(Integer rating) { this.rating = rating; }
 }

@@ -167,6 +167,41 @@ public class CookOrdersView extends VerticalLayout {
                 itemLayout.add(name, quantity, price, subtotal);
                 productsLayout.add(itemLayout);
 
+                // =========================
+                // INGREDIENTES DEL PRODUCTO
+                // =========================
+                if (item.getProduct() != null && item.getProduct().getIngredients() != null) {
+
+                    VerticalLayout ingredientsLayout = new VerticalLayout();
+                    ingredientsLayout.setPadding(false);
+                    ingredientsLayout.setSpacing(false);
+                    ingredientsLayout.getStyle().set("margin-left", "20px");
+
+                    H3 ingTitle = new H3("Ingredientes:");
+                    ingTitle.getStyle().set("font-size", "14px").set("margin", "5px 0");
+                    ingredientsLayout.add(ingTitle);
+
+                    item.getProduct().getIngredients().forEach(ing -> {
+                        HorizontalLayout ingRow = new HorizontalLayout();
+                        ingRow.setWidthFull();
+                        ingRow.setSpacing(true);
+
+                        Span ingName = new Span("• " + ing.getName());
+                        Span ingQty = new Span("Cantidad: " + (int) ing.getQuantity());
+
+                        if (ing.isCustomizable()) {
+                            ingQty.getStyle().set("color", "var(--lumo-primary-text-color)");
+                        } else {
+                            ingQty.getStyle().set("color", "gray");
+                        }
+
+                        ingRow.add(ingName, ingQty);
+                        ingredientsLayout.add(ingRow);
+                    });
+
+                    productsLayout.add(ingredientsLayout);
+                }
+
                 total += item.getUnitPrice() * item.getQuantity();
             }
 

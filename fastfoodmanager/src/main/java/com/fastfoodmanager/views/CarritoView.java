@@ -1,6 +1,8 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.domain.Order;
+import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.ProductSnapshot;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.domain.User;
@@ -8,6 +10,8 @@ import com.fastfoodmanager.service.CartService;
 import com.fastfoodmanager.service.OrderService;
 import com.fastfoodmanager.service.UserService;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -51,8 +55,18 @@ public class CarritoView extends VerticalLayout {
 
         H1 title = new H1("🛒 Tu pedido");
 
-        grid.addColumn(i -> i.getProduct() != null ? i.getProduct().getName() : "-")
-                .setHeader("Producto").setFlexGrow(1);
+        grid.addComponentColumn(item -> {
+            Span clickable = new Span(item.getProduct().getName());
+            clickable.getStyle()
+                    .set("color", "#0070ba")
+                    .set("cursor", "pointer")
+                    .set("font-weight", "600")
+                    .set("text-decoration", "underline");
+
+            clickable.addClickListener(e -> showItemDetails(item));
+
+            return clickable;
+        }).setHeader("Producto").setFlexGrow(1);
         grid.addColumn(i -> String.format("€ %.2f", i.getUnitPrice()))
                 .setHeader("Precio").setAutoWidth(true);
         grid.addColumn(OrderItem::getQuantity)
@@ -67,7 +81,7 @@ public class CarritoView extends VerticalLayout {
             });
 
             Button plus = new Button("+", e -> {
-                cartService.add(i.getProduct());
+                cartService.addProductSnapshot(i.getProduct());
                 refresh();
             });
 
@@ -382,5 +396,92 @@ public class CarritoView extends VerticalLayout {
             e.printStackTrace();
             Notification.show("❌ Error al procesar el pedido: " + e.getMessage(), 5000, Notification.Position.MIDDLE);
         }
+    }
+
+    private void showItemDetails(OrderItem item) {
+        ProductSnapshot product = item.getProduct();
+
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle("Detalles de " + product.getName());
+
+        VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(false);
+
+        // Nombre y precio
+        H2 name = new H2(product.getName());
+        Paragraph price = new Paragraph("Precio unitario: €" + String.format("%.2f", product.getPrice()));
+
+    /* =========================
+       INGREDIENTES NORMALES
+       ========================= */
+        VerticalLayout ingredientsLayout = new VerticalLayout();
+        ingredientsLayout.setSpacing(false);
+        ingredientsLayout.setPadding(false);
+
+        List<Product.Ingredient> ingredients = product.getIngredients();
+
+        if (ingredients == null || ingredients.isEmpty()) {
+            ingredientsLayout.add(new Span("— Sin ingredientes —"));
+        } else {
+            ingredients.forEach(ing -> {
+                Div row = new Div();
+                row.getStyle()
+                        .set("display", "flex")
+                        .set("justify-content", "space-between")
+                        .set("width", "100%");
+
+                Span nameSpan = new Span(ing.getName());
+                Span qtySpan = new Span("Cantidad: " + (int) ing.getQuantity());
+
+                row.add(nameSpan, qtySpan);
+                ingredientsLayout.add(row);
+            });
+        }
+
+    /* =========================
+       INGREDIENTES PERSONALIZABLES
+       ========================= */
+        VerticalLayout customizableLayout = new VerticalLayout();
+        customizableLayout.setSpacing(false);
+        customizableLayout.setPadding(false);
+
+        List<Product.Ingredient> customizable = ingredients.stream()
+                .filter(Product.Ingredient::isCustomizable)
+                .toList();
+
+        if (customizable.isEmpty()) {
+            customizableLayout.add(new Span("— No hay ingredientes personalizables —"));
+        } else {
+            customizable.forEach(ing -> {
+                Div row = new Div();
+                row.getStyle()
+                        .set("display", "flex")
+                        .set("justify-content", "space-between")
+                        .set("width", "100%");
+
+                Span nameSpan = new Span(ing.getName());
+                Span qtySpan = new Span("Cantidad: " + (int) ing.getQuantity());
+
+                row.add(nameSpan, qtySpan);
+                customizableLayout.add(row);
+            });
+        }
+
+        content.add(
+                name,
+                price,
+                new H3("Ingredientes"),
+                ingredientsLayout,
+                new H3("Personalizables"),
+                customizableLayout
+        );
+
+        dialog.add(content);
+
+        Button close = new Button("Cerrar", e -> dialog.close());
+        dialog.getFooter().add(close);
+
+        dialog.open();
     }
 }

@@ -6,6 +6,7 @@ import com.fastfoodmanager.service.OrderService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.fastfoodmanager.service.EmailService;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
@@ -39,9 +40,11 @@ public class DeliveryOrdersView extends VerticalLayout {
     private final OrderService orderService;
     private final Grid<Order> grid = new Grid<>(Order.class, false);
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private final EmailService emailService;
 
-    public DeliveryOrdersView(OrderService orderService) {
+    public DeliveryOrdersView(OrderService orderService, EmailService emailService) {
         this.orderService = orderService;
+        this.emailService = emailService;
 
         setSizeFull();
         setSpacing(true);
@@ -442,10 +445,17 @@ public class DeliveryOrdersView extends VerticalLayout {
             }
 
             orderService.markDelivered(order.getId(), me);
+
+            // 🔥 Recargar el pedido COMPLETO desde la BD
+            Order updated = orderService.findDeliveryOrderWithDetails(order.getId(), me);
+
+            // 🔥 Ahora sí enviar el email
+            emailService.enviarConfirmacionEntrega(updated);
+
+
             Notification.show("✅ Pedido #" + order.getId() + " marcado como ENTREGADO",
                     3000, Notification.Position.MIDDLE);
 
-            // Refrescar después de un pequeño delay
             UI ui = UI.getCurrent();
             if (ui != null) {
                 ui.access(() -> {

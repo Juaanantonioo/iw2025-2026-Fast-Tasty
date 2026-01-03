@@ -226,36 +226,51 @@ public class EmailService {
     public void enviarConfirmacionEntrega(Order pedido) {
         try {
             String email = pedido.getCustomer().getEmail();
-            log.info("EMAIL DEBUG → Cliente: {}", pedido.getCustomer());
-            log.info("EMAIL DEBUG → Email: {}", pedido.getCustomer().getEmail());
-            log.info("EMAIL DEBUG → Items: {}", pedido.getItems().size());
             if (email == null || email.isBlank()) return;
+
+            boolean esDelivery = pedido.getOrderType() == OrderType.DELIVERY;
 
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
-            message.setSubject("Tu pedido #" + pedido.getId() + " ha sido ENTREGADO ✔");
+
+            // 🔥 Asunto dinámico
+            message.setSubject(
+                    esDelivery
+                            ? "Tu pedido #" + pedido.getId() + " ha sido ENTREGADO ✔"
+                            : "Tu pedido #" + pedido.getId() + " ha sido RECOGIDO ✔"
+            );
+
             message.setFrom("noreply@fasttasty.com");
 
-            message.setText(construirContenidoConfirmacionEntrega(pedido));
+            // 🔥 Contenido dinámico
+            message.setText(construirContenidoConfirmacionFinal(pedido, esDelivery));
 
             mailSender.send(message);
-            log.info("📨 Email de confirmación de entrega enviado a {}", email);
+            log.info("📨 Email de confirmación enviado a {}", email);
 
         } catch (Exception e) {
-            log.error("❌ Error enviando email de entrega: {}", e.getMessage());
+            log.error("❌ Error enviando email de entrega/recogida: {}", e.getMessage());
         }
     }
 
-    private String construirContenidoConfirmacionEntrega(Order pedido) {
+    private String construirContenidoConfirmacionFinal(Order pedido, boolean esDelivery) {
         StringBuilder c = new StringBuilder();
 
         c.append("=".repeat(50)).append("\n");
-        c.append("        FASTTASTY - CONFIRMACIÓN DE ENTREGA\n");
+        c.append("        FASTTASTY - CONFIRMACIÓN DE ")
+                .append(esDelivery ? "ENTREGA" : "RECOGIDA")
+                .append("\n");
         c.append("=".repeat(50)).append("\n\n");
 
         c.append("Hola ").append(pedido.getCustomer().getUsername()).append(",\n\n");
-        c.append("Tu pedido #").append(pedido.getId()).append(" ha sido ENTREGADO correctamente.\n");
-        c.append("Esperamos que disfrutes tu comida 🍔🍟\n\n");
+
+        if (esDelivery) {
+            c.append("Tu pedido #").append(pedido.getId()).append(" ha sido ENTREGADO correctamente.\n");
+            c.append("Esperamos que disfrutes tu comida 🍔🍟\n\n");
+        } else {
+            c.append("Tu pedido #").append(pedido.getId()).append(" ha sido RECOGIDO en nuestro local.\n");
+            c.append("¡Gracias por visitarnos! 😄\n\n");
+        }
 
         c.append("DETALLE DEL PEDIDO:\n");
         c.append("-".repeat(50)).append("\n");
@@ -286,13 +301,18 @@ public class EmailService {
         c.append(String.format("TOTAL PAGADO: €%.2f\n", pedido.getTotal()));
         c.append("=".repeat(50)).append("\n\n");
 
-        // ⭐ NUEVO SISTEMA DE VALORACIÓN (solo un enlace)
+        // ⭐ Enlace a valoración
         c.append("VALORA TU EXPERIENCIA:\n");
         c.append("Haz clic aquí para dejarnos tu valoración:\n");
-        c.append("➡ http://fasttasty.com/rating?order=").append(pedido.getId()).append("\n\n");
+        c.append("➡ https://fasttasty.com/rating?order=").append(pedido.getId()).append("\n\n");
 
-        c.append("Gracias por confiar en FastTasty ❤️\n");
-        c.append("Tu opinión nos ayuda a mejorar.\n");
+        if (esDelivery) {
+            c.append("Gracias por confiar en FastTasty ❤️\n");
+            c.append("¡Esperamos que disfrutes tu comida!\n");
+        } else {
+            c.append("Gracias por tu visita ❤️\n");
+            c.append("¡Esperamos verte pronto de nuevo!\n");
+        }
 
         return c.toString();
     }

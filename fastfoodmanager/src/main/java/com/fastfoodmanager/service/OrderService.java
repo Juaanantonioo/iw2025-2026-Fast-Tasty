@@ -433,6 +433,27 @@ public class OrderService {
         });
     }
 
+    @Transactional(readOnly = true)
+    public Order findOrderWithDetails(Long orderId) {
+        Order order = orderRepo.findWithItemsById(orderId)
+                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado"));
+
+        // Forzar carga del cliente
+        if (order.getCustomer() != null) {
+            order.getCustomer().getUsername();
+            order.getCustomer().getEmail();
+        }
+
+        // Forzar carga de ingredientes
+        for (OrderItem item : order.getItems()) {
+            if (item.getProduct() != null && item.getProduct().getIngredients() != null) {
+                item.getProduct().getIngredients().size();
+            }
+        }
+
+        return order;
+    }
+
     // =========
     // Compatibilidad updateStatus
     // =========

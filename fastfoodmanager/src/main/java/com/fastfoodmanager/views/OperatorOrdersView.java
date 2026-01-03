@@ -3,6 +3,7 @@ package com.fastfoodmanager.views;
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.service.OrderService;
+import com.fastfoodmanager.service.EmailService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.grid.Grid;
@@ -28,9 +29,11 @@ public class OperatorOrdersView extends VerticalLayout {
     private final OrderService orderService;
     private final Grid<Order> grid = new Grid<>(Order.class, false);
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private final EmailService emailService;
 
-    public OperatorOrdersView(OrderService orderService) {
+    public OperatorOrdersView(OrderService orderService, EmailService emailService) {
         this.orderService = orderService;
+        this.emailService = emailService;
 
         setSizeFull();
         setPadding(false);
@@ -143,6 +146,13 @@ public class OperatorOrdersView extends VerticalLayout {
                 Button b = new Button("Marcar recogido", e -> {
                     try {
                         orderService.markAsPickedUp(o.getId(), me);
+
+                        // 🔥 Recargar pedido con detalles completos (ingredientes incluidos)
+                        Order updated = orderService.findOrderWithDetails(o.getId());
+
+                        // 🔥 Enviar el mismo email que cuando se entrega
+                        emailService.enviarConfirmacionEntrega(updated);
+
                         Notification.show("Pedido " + o.getId() + " → RECOGIDO", 2000, Notification.Position.MIDDLE);
                         refresh();
                     } catch (Exception ex) {

@@ -6,6 +6,7 @@ import com.fastfoodmanager.domain.ProductSnapshot;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.domain.User;
+import com.fastfoodmanager.domain.MenuSnapshot;
 import com.fastfoodmanager.service.CartService;
 import com.fastfoodmanager.service.OrderService;
 import com.fastfoodmanager.service.UserService;
@@ -31,6 +32,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 
 @PageTitle("Pedido | FastTasty")
 @RolesAllowed("USER")
@@ -56,7 +58,18 @@ public class CarritoView extends VerticalLayout {
         H1 title = new H1("🛒 Tu pedido");
 
         grid.addComponentColumn(item -> {
-            Span clickable = new Span(item.getProduct().getName());
+
+            String name;
+
+            if (item.getProduct() != null) {
+                name = item.getProduct().getName();
+            } else if (item.getMenu() != null) {
+                name = item.getMenu().getName(); // nombre del menú
+            } else {
+                name = "Artículo desconocido";
+            }
+
+            Span clickable = new Span(name);
             clickable.getStyle()
                     .set("color", "#0070ba")
                     .set("cursor", "pointer")
@@ -67,6 +80,7 @@ public class CarritoView extends VerticalLayout {
 
             return clickable;
         }).setHeader("Producto").setFlexGrow(1);
+
         grid.addColumn(i -> String.format("€ %.2f", i.getUnitPrice()))
                 .setHeader("Precio").setAutoWidth(true);
         grid.addColumn(OrderItem::getQuantity)
@@ -398,8 +412,7 @@ public class CarritoView extends VerticalLayout {
         }
     }
 
-    private void showItemDetails(OrderItem item) {
-        ProductSnapshot product = item.getProduct();
+    private void showProductDetails(ProductSnapshot product) {
 
         Dialog dialog = new Dialog();
         dialog.setHeaderTitle("Detalles de " + product.getName());
@@ -408,13 +421,9 @@ public class CarritoView extends VerticalLayout {
         content.setSpacing(true);
         content.setPadding(false);
 
-        // Nombre y precio
         H2 name = new H2(product.getName());
         Paragraph price = new Paragraph("Precio unitario: €" + String.format("%.2f", product.getPrice()));
 
-    /* =========================
-       INGREDIENTES NORMALES
-       ========================= */
         VerticalLayout ingredientsLayout = new VerticalLayout();
         ingredientsLayout.setSpacing(false);
         ingredientsLayout.setPadding(false);
@@ -439,49 +448,64 @@ public class CarritoView extends VerticalLayout {
             });
         }
 
-    /* =========================
-       INGREDIENTES PERSONALIZABLES
-       ========================= */
-        VerticalLayout customizableLayout = new VerticalLayout();
-        customizableLayout.setSpacing(false);
-        customizableLayout.setPadding(false);
-
-        List<Product.Ingredient> customizable = ingredients.stream()
-                .filter(Product.Ingredient::isCustomizable)
-                .toList();
-
-        if (customizable.isEmpty()) {
-            customizableLayout.add(new Span("— No hay ingredientes personalizables —"));
-        } else {
-            customizable.forEach(ing -> {
-                Div row = new Div();
-                row.getStyle()
-                        .set("display", "flex")
-                        .set("justify-content", "space-between")
-                        .set("width", "100%");
-
-                Span nameSpan = new Span(ing.getName());
-                Span qtySpan = new Span("Cantidad: " + (int) ing.getQuantity());
-
-                row.add(nameSpan, qtySpan);
-                customizableLayout.add(row);
-            });
-        }
-
-        content.add(
-                name,
-                price,
-                new H3("Ingredientes"),
-                ingredientsLayout,
-                new H3("Personalizables"),
-                customizableLayout
-        );
+        content.add(name, price, new H3("Ingredientes"), ingredientsLayout);
 
         dialog.add(content);
+        dialog.getFooter().add(new Button("Cerrar", e -> dialog.close()));
+        dialog.open();
+    }
 
-        Button close = new Button("Cerrar", e -> dialog.close());
-        dialog.getFooter().add(close);
+    private void showItemDetails(OrderItem item) {
 
+        if (item.getProduct() != null) {
+            showProductDetails(item.getProduct());
+            return;
+        }
+
+        if (item.getMenu() != null) {
+            showMenuDetails(item.getMenu());
+            return;
+        }
+
+        Notification.show("No se pudo mostrar el detalle del artículo");
+    }
+
+    private void showMenuDetails(MenuSnapshot menu) {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(menu.getName());
+
+        VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(false);
+
+        content.add(new H3("Menú personalizado"));
+
+        // Helper para mostrar categoría + cantidad + productos
+        BiConsumer<String, List<String>> addCategory = (label, list) -> {
+            if (list == null || list.isEmpty()) return;
+
+            int qty = switch (label) {
+                case "Main" -> menu.getMainQuantity();
+                case "Side" -> menu.getSideQuantity();
+                case "Drink" -> menu.getDrinkQuantity();
+                case "Secondary" -> menu.getSecondaryQuantity();
+                case "Dessert" -> menu.getDessertQuantity();
+                default -> 1;
+            };
+
+            // Ejemplo: "Main (x2): producto1, producto2"
+            String line = label + " (x" + qty + "): " + String.join(", ", list);
+            content.add(new Paragraph(line));
+        };
+
+        addCategory.accept("Main", menu.getMainProducts());
+        addCategory.accept("Side", menu.getSideProducts());
+        addCategory.accept("Drink", menu.getDrinkProducts());
+        addCategory.accept("Secondary", menu.getSecondaryProducts());
+        addCategory.accept("Dessert", menu.getDessertProducts());
+
+        dialog.add(content);
+        dialog.getFooter().add(new Button("Cerrar", e -> dialog.close()));
         dialog.open();
     }
 }

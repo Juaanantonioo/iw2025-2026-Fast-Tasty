@@ -80,6 +80,7 @@ public class MainLayout extends AppLayout {
             tabs.add(new RouterLink("Gestionar usuarios", AdminUsersView.class));
             tabs.add(new RouterLink("Gestionar encargados", AdminManagersView.class));
             tabs.add(new RouterLink("Gestionar categorías", AdminFoodTypeView.class));
+            tabs.add(new RouterLink("Gestionar menús", MenuView.class));
         }
 
         HorizontalLayout right = new HorizontalLayout();

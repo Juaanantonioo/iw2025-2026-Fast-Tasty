@@ -266,25 +266,39 @@ public class OrderService {
         return orders;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Order findDeliveryOrderWithDetails(Long orderId, String deliveryUsername) {
-        Order order = orderRepo.findWithItemsById(orderId)
-                .orElseThrow(() -> new NoSuchElementException("Pedido no encontrado: " + orderId));
 
-        if (!deliveryUsername.equals(order.getDeliveryTo())) {
-            throw new SecurityException("Este pedido no está asignado a ti");
+        // 1. Cargar pedido
+        Order order = orderRepo.findById(orderId).orElse(null);
+        if (order == null) return null;
+
+        // 2. Validar repartidor
+        if (order.getDeliveryTo() == null || !order.getDeliveryTo().equals(deliveryUsername)) {
+            throw new IllegalStateException("Este pedido no está asignado a este repartidor");
         }
 
-        // 🔥 Forzar carga del cliente
+        // 3. Forzar carga del cliente (EVITA email null)
         if (order.getCustomer() != null) {
+            order.getCustomer().getId();        // inicializa proxy
             order.getCustomer().getUsername();
-            order.getCustomer().getEmail();
+            order.getCustomer().getEmail();     // 🔥 ESTA ES LA CLAVE
         }
 
-        // 🔥 Forzar carga de ingredientes del snapshot
-        for (OrderItem item : order.getItems()) {
-            if (item.getProduct() != null && item.getProduct().getIngredients() != null) {
-                item.getProduct().getIngredients().size();
+        // 4. Forzar carga de items
+        if (order.getItems() != null) {
+            order.getItems().size();
+
+            // 5. Reconstruir snapshots
+            for (OrderItem item : order.getItems()) {
+
+                if (item.isProduct() && item.getProduct() != null) {
+                    item.getProduct().getName();
+                }
+
+                if (item.isMenu() && item.getMenu() != null) {
+                    item.getMenu().getName();
+                }
             }
         }
 
@@ -372,17 +386,22 @@ public class OrderService {
     }
 
     @Transactional
-    public void markDelivered(Long orderId, String deliveryUsername) {
-        orderRepo.findById(orderId).ifPresent(o -> {
-            if (!"EN REPARTO".equalsIgnoreCase(o.getStatus())) {
-                throw new IllegalStateException("Solo se puede entregar un pedido EN REPARTO.");
-            }
-            if (!deliveryUsername.equals(o.getDeliveryTo())) {
-                throw new IllegalStateException("Este pedido no está asignado a ti.");
-            }
-            o.setStatus("ENTREGADO");
-            orderRepo.save(o);
-        });
+    public Order markDelivered(Long orderId, String deliveryUsername) {
+
+        Order o = orderRepo.findById(orderId)
+                .orElseThrow(() -> new IllegalStateException("Pedido no encontrado"));
+
+        if (!"EN REPARTO".equalsIgnoreCase(o.getStatus())) {
+            throw new IllegalStateException("Solo se puede entregar un pedido EN REPARTO.");
+        }
+        if (!deliveryUsername.equals(o.getDeliveryTo())) {
+            throw new IllegalStateException("Este pedido no está asignado a ti.");
+        }
+
+        o.setStatus("ENTREGADO");
+        orderRepo.save(o);
+
+        return o; // 🔥 DEVOLVER EL PEDIDO
     }
 
     // =========
@@ -445,11 +464,8 @@ public class OrderService {
         }
 
         // Forzar carga de ingredientes
-        for (OrderItem item : order.getItems()) {
-            if (item.getProduct() != null && item.getProduct().getIngredients() != null) {
-                item.getProduct().getIngredients().size();
-            }
-        }
+        order.getItems().size(); // solo asegurar que la lista está cargada
+
 
         return order;
     }
@@ -478,4 +494,9 @@ public class OrderService {
             throw new IllegalArgumentException("Estado no soportado: " + newStatus);
         });
     }
+
+    public List<Order> findByDeliveryToAndStatus(String deliveryUsername, String status) {
+        return orderRepo.findByDeliveryToAndStatus(deliveryUsername, status);
+    }
+
 }

@@ -12,8 +12,7 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // Pedido con items + product (para modificar/cancelar sin LazyInitialization)
-    @EntityGraph(attributePaths = {"items", "items.product"})
+    @EntityGraph(attributePaths = {"items"})
     Optional<Order> findWithItemsById(Long id);
 
     List<Order> findByAssignedTo(String assignedTo);
@@ -22,20 +21,18 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatusAndAssignedToIsNull(String status);
 
-    // Para "Mis pedidos" (cargar items + product)
-    @EntityGraph(attributePaths = {"items", "items.product"})
+    @EntityGraph(attributePaths = {"items"})
     List<Order> findByCustomer_UsernameOrderByCreatedAtDesc(String username);
 
-    // Cocina con items
     @Query("""
-           select distinct o
-           from Order o
-           left join fetch o.items i
-           left join fetch i.product p
-           where o.status = :status and o.cookedDone = false
-           order by o.createdAt asc
-           """)
-    List<Order> findKitchenQueueWithItems(@Param("status") String status);
+        select distinct o
+        from Order o
+        left join fetch o.items i
+        where o.status = :status
+          and o.cookedDone = false
+        order by o.createdAt asc
+    """)
+    List<Order> findKitchenQueueWithItems(String status);
 
     List<Order> findByStatusAndCookedDoneFalse(String status);
 

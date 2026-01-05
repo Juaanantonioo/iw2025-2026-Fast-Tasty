@@ -48,6 +48,7 @@ public class ProductView extends VerticalLayout {
     private final TextField name = new TextField("Nombre");
     private final TextArea description = new TextArea("Descripción");
     private final ComboBox<FoodType> type = new ComboBox<>("Tipo");
+    private final ComboBox<Product.ProductCategory> category = new ComboBox<>("Categoría");
     private final MultiSelectComboBox<Allergen> allergens = new MultiSelectComboBox<>("Alérgenos");
     private final NumberField price = new NumberField("Precio (€)");
     private final Checkbox active = new Checkbox("Activo", true);
@@ -118,6 +119,17 @@ public class ProductView extends VerticalLayout {
         allergens.setItemLabelGenerator(Allergen::getName);
         allergens.setPlaceholder("Selecciona alérgenos si los tiene");
 
+        category.setItems(Product.ProductCategory.values());
+        category.setItemLabelGenerator(cat -> switch (cat) {
+            case MAIN -> "Principal";
+            case SECONDARY -> "Secundario";
+            case DRINK -> "Bebida";
+            case SIDE -> "Acompañamiento";
+            case DESSERT -> "Postre";
+        });
+        category.setPlaceholder("Selecciona categoría");
+        category.setWidth("200px");
+
         // Ingredientes
         ingredientsContainer.setPadding(false);
         ingredientsContainer.setSpacing(true);
@@ -166,7 +178,7 @@ public class ProductView extends VerticalLayout {
                 new com.vaadin.flow.component.formlayout.FormLayout.ResponsiveStep("720px", 2)
         );
 
-        form.add(name, type, price, description, allergens, active,
+        form.add(name, type, category, price, description, allergens, active,
                 addIngredientBtn, ingredientsContainer, imageUpload, previewImage);
 
         form.setColspan(description, 2);
@@ -227,6 +239,9 @@ public class ProductView extends VerticalLayout {
         binder.forField(name).asRequired("El nombre es obligatorio").bind(Product::getName, Product::setName);
         binder.forField(description).bind(Product::getDescription, Product::setDescription);
         binder.forField(type).asRequired("Debes elegir un tipo de comida").bind(Product::getType, Product::setType);
+        binder.forField(category)
+                .asRequired("Debes elegir una categoría")
+                .bind(Product::getCategory, Product::setCategory);
         binder.forField(allergens).bind(Product::getAllergens, Product::setAllergens);
         binder.forField(price).asRequired("El precio es obligatorio")
                 .withValidator(new DoubleRangeValidator("El precio debe ser ≥ 0", 0.0, null))

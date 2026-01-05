@@ -3,6 +3,7 @@ package com.fastfoodmanager.service;
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.OrderType;
+import com.fastfoodmanager.domain.MenuSnapshot;
 import com.fastfoodmanager.models.Booking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,17 +173,69 @@ public class EmailService {
         List<OrderItem> items = pedido.getItems();
         for (OrderItem item : items) {
 
-            // Línea principal del producto
-            contenido.append(String.format(
-                    "%-30s %3d x €%7.2f = €%7.2f%n",
-                    item.getProduct().getName(),
-                    item.getQuantity(),
-                    item.getUnitPrice(),
-                    item.getSubtotal()
-            ));
+            if (item.getProduct() != null) {
+                // PRODUCTO INDIVIDUAL
+                contenido.append(String.format(
+                        "%-30s %3d x €%7.2f = €%7.2f%n",
+                        item.getProduct().getName(),
+                        item.getQuantity(),
+                        item.getUnitPrice(),
+                        item.getSubtotal()
+                ));
+
+                if (item.getProduct().getIngredients() != null && !item.getProduct().getIngredients().isEmpty()) {
+                    contenido.append("    Ingredientes:\n");
+                    for (var ing : item.getProduct().getIngredients()) {
+                        contenido.append(String.format(
+                                "      - %-20s Cantidad: %s%s%n",
+                                ing.getName(),
+                                (int) ing.getQuantity(),
+                                ing.isCustomizable() ? " (personalizable)" : ""
+                        ));
+                    }
+                }
+
+            } else if (item.getMenu() != null) {
+                // MENÚ
+                MenuSnapshot m = item.getMenu();
+
+                contenido.append(String.format(
+                        "%-30s %3d x €%7.2f = €%7.2f%n",
+                        m.getName() + " (Menú)",
+                        item.getQuantity(),
+                        item.getUnitPrice(),
+                        item.getSubtotal()
+                ));
+
+                // Mostrar categorías del menú
+                if (!m.getMainProducts().isEmpty())
+                    contenido.append("    Main (x").append(m.getMainQuantity()).append("): ")
+                            .append(String.join(", ", m.getMainProducts())).append("\n");
+
+                if (!m.getSideProducts().isEmpty())
+                    contenido.append("    Side (x").append(m.getSideQuantity()).append("): ")
+                            .append(String.join(", ", m.getSideProducts())).append("\n");
+
+                if (!m.getDrinkProducts().isEmpty())
+                    contenido.append("    Drink (x").append(m.getDrinkQuantity()).append("): ")
+                            .append(String.join(", ", m.getDrinkProducts())).append("\n");
+
+                if (!m.getSecondaryProducts().isEmpty())
+                    contenido.append("    Secondary (x").append(m.getSecondaryQuantity()).append("): ")
+                            .append(String.join(", ", m.getSecondaryProducts())).append("\n");
+
+                if (!m.getDessertProducts().isEmpty())
+                    contenido.append("    Dessert (x").append(m.getDessertQuantity()).append("): ")
+                            .append(String.join(", ", m.getDessertProducts())).append("\n");
+            }
+
+            contenido.append("\n");
 
             // 🔥 INGREDIENTES DEL SNAPSHOT
-            if (item.getProduct().getIngredients() != null && !item.getProduct().getIngredients().isEmpty()) {
+            if (item.isProduct()
+                    && item.getProduct().getIngredients() != null
+                    && !item.getProduct().getIngredients().isEmpty()) {
+
                 contenido.append("    Ingredientes:\n");
 
                 for (var ing : item.getProduct().getIngredients()) {
@@ -276,11 +329,61 @@ public class EmailService {
         c.append("-".repeat(50)).append("\n");
 
         for (OrderItem item : pedido.getItems()) {
-            c.append(String.format("%s x%d - €%.2f\n",
-                    item.getProduct().getName(),
-                    item.getQuantity(),
-                    item.getSubtotal()
-            ));
+            if (item.getProduct() != null) {
+                // PRODUCTO INDIVIDUAL
+                c.append(String.format("%s x%d - €%.2f\n",
+                        item.getProduct().getName(),
+                        item.getQuantity(),
+                        item.getSubtotal()
+                ));
+
+                if (item.isProduct()
+                        && item.getProduct().getIngredients() != null
+                        && !item.getProduct().getIngredients().isEmpty()) {
+
+                    c.append("   Ingredientes:\n");
+                    for (var ing : item.getProduct().getIngredients()) {
+                        c.append(String.format(
+                                "     - %s: %d%s\n",
+                                ing.getName(),
+                                (int) ing.getQuantity(),
+                                ing.isCustomizable() ? " (personalizable)" : ""
+                        ));
+                    }
+                }
+
+            } else if (item.getMenu() != null) {
+                // MENÚ
+                MenuSnapshot m = item.getMenu();
+
+                c.append(String.format("%s (Menú) x%d - €%.2f\n",
+                        m.getName(),
+                        item.getQuantity(),
+                        item.getSubtotal()
+                ));
+
+                if (!m.getMainProducts().isEmpty())
+                    c.append("   Main (x").append(m.getMainQuantity()).append("): ")
+                            .append(String.join(", ", m.getMainProducts())).append("\n");
+
+                if (!m.getSideProducts().isEmpty())
+                    c.append("   Side (x").append(m.getSideQuantity()).append("): ")
+                            .append(String.join(", ", m.getSideProducts())).append("\n");
+
+                if (!m.getDrinkProducts().isEmpty())
+                    c.append("   Drink (x").append(m.getDrinkQuantity()).append("): ")
+                            .append(String.join(", ", m.getDrinkProducts())).append("\n");
+
+                if (!m.getSecondaryProducts().isEmpty())
+                    c.append("   Secondary (x").append(m.getSecondaryQuantity()).append("): ")
+                            .append(String.join(", ", m.getSecondaryProducts())).append("\n");
+
+                if (!m.getDessertProducts().isEmpty())
+                    c.append("   Dessert (x").append(m.getDessertQuantity()).append("): ")
+                            .append(String.join(", ", m.getDessertProducts())).append("\n");
+            }
+
+            c.append("\n");
 
             if (item.getProduct().getIngredients() != null) {
                 c.append("   Ingredientes:\n");

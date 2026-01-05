@@ -3,6 +3,7 @@ package com.fastfoodmanager.views;
 import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.Product;
+import com.fastfoodmanager.domain.MenuSnapshot;
 import com.fastfoodmanager.service.OrderService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -57,8 +58,11 @@ public class ClientOrdersView extends VerticalLayout {
                 .setHeader("Fecha").setAutoWidth(true).setSortable(true);
         grid.addColumn(o -> o.getStatus() == null ? "-" : o.getStatus())
                 .setHeader("Estado").setAutoWidth(true).setSortable(true);
+
+        // 🔥 Adaptado para menús
         grid.addColumn(o -> formatItemsSafe(o.getItems()))
                 .setHeader("Productos").setFlexGrow(1);
+
         grid.addColumn(o -> String.format("€ %.2f", o.getTotal() == null ? 0.0 : o.getTotal()))
                 .setHeader("Total").setAutoWidth(true);
 
@@ -92,10 +96,20 @@ public class ClientOrdersView extends VerticalLayout {
         grid.getDataProvider().refreshAll();
     }
 
+    // 🔥 Adaptado para menús
     private String formatItemsSafe(List<OrderItem> items) {
         if (items == null || items.isEmpty()) return "-";
+
         return items.stream()
-                .map(i -> i.getProduct().getName() + " x" + i.getQuantity())
+                .map(i -> {
+                    if (i.getProduct() != null) {
+                        return i.getProduct().getName() + " x" + i.getQuantity();
+                    }
+                    if (i.getMenu() != null) {
+                        return i.getMenu().getName() + " (Menú) x" + i.getQuantity();
+                    }
+                    return "Artículo desconocido";
+                })
                 .reduce((a, b) -> a + ", " + b)
                 .orElse("-");
     }
@@ -139,26 +153,27 @@ public class ClientOrdersView extends VerticalLayout {
         FormLayout form = new FormLayout();
         form.setWidth("650px");
 
-        // 🔥 Ahora usamos el índice del item, no el ID del producto
         Map<Integer, IntegerField> fields = new LinkedHashMap<>();
-
         List<OrderItem> items = fresh.getItems();
 
         for (int index = 0; index < items.size(); index++) {
             OrderItem item = items.get(index);
 
-            String label = item.getProduct().getName();
+            // 🔥 Solo productos individuales son modificables
+            if (item.getProduct() != null) {
+                String label = item.getProduct().getName();
 
-            IntegerField qty = new IntegerField(label);
-            qty.setMin(0);
-            qty.setStepButtonsVisible(true);
-            qty.setValue(item.getQuantity());
+                IntegerField qty = new IntegerField(label);
+                qty.setMin(0);
+                qty.setStepButtonsVisible(true);
+                qty.setValue(item.getQuantity());
 
-            fields.put(index, qty);
-            form.add(qty);
+                fields.put(index, qty);
+                form.add(qty);
+            }
         }
 
-        // Sección para añadir productos nuevos (estos sí vienen de Product real)
+        // 🔥 Menús NO se pueden añadir ni modificar
         ComboBox<Product> productBox = new ComboBox<>("Añadir producto");
         productBox.setWidthFull();
         productBox.setItemLabelGenerator(p -> p.getName() + " (€ " + String.format("%.2f", p.getPrice()) + ")");
@@ -184,7 +199,6 @@ public class ClientOrdersView extends VerticalLayout {
                 return;
             }
 
-            // Añadir al final como nueva línea
             int newIndex = fields.size();
 
             IntegerField qty = new IntegerField(p.getName());

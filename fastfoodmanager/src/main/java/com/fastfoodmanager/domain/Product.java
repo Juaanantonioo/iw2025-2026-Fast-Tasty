@@ -100,6 +100,22 @@ public class Product {
     }
 
     // =========================
+    // NUEVO ENUM
+    // =========================
+    public enum ProductCategory {
+        MAIN,
+        SECONDARY,
+        DRINK,
+        SIDE,
+        DESSERT
+    }
+    // Nueva categoría del producto
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductCategory category = ProductCategory.MAIN;
+
+
+    // =========================
     // GETTERS Y SETTERS
     // =========================
     public Long getId() { return id; }
@@ -131,4 +147,7 @@ public class Product {
 
     public List<Ingredient> getIngredients() { return ingredients; }
     public void setIngredients(List<Ingredient> ingredients) { this.ingredients = ingredients; }
+
+    public ProductCategory getCategory() { return category; }
+    public void setCategory(ProductCategory category) { this.category = category; }
 }

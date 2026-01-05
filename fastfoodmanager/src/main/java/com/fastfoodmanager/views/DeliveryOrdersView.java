@@ -129,8 +129,8 @@ public class DeliveryOrdersView extends VerticalLayout {
                 return;
             }
             // Usar el nuevo método que carga los pedidos con detalles
-            List<Order> data = orderService.findForDeliveryWithDetails(me);
-            grid.setItems(data);
+            List<Order> orders = orderService.findByDeliveryToAndStatus(me, "EN REPARTO");
+            grid.setItems(orders);
         } catch (Exception e) {
             log.error("Error al refrescar datos", e);
             Notification.show("Error al cargar pedidos: " + e.getMessage(),
@@ -317,7 +317,9 @@ public class DeliveryOrdersView extends VerticalLayout {
                 productsLayout.add(headerLayout);
 
                 // Items del pedido
+                // Items del pedido
                 for (OrderItem item : order.getItems()) {
+
                     HorizontalLayout itemLayout = new HorizontalLayout();
                     itemLayout.setWidthFull();
                     itemLayout.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -325,12 +327,17 @@ public class DeliveryOrdersView extends VerticalLayout {
                             .set("padding", "10px 0")
                             .set("border-bottom", "1px solid var(--lumo-contrast-10pct)");
 
-                    String productName = "Producto";
-                    if (item.getProduct() != null && item.getProduct().getName() != null) {
-                        productName = item.getProduct().getName();
+                    // Nombre correcto según tipo
+                    String nameText;
+                    if (item.isProduct()) {
+                        nameText = item.getProductName();
+                    } else if (item.isMenu()) {
+                        nameText = item.getMenuName() + " (Menú)";
+                    } else {
+                        nameText = "Producto";
                     }
 
-                    Span nameSpan = new Span(productName);
+                    Span nameSpan = new Span(nameText);
                     nameSpan.setWidth("45%");
                     nameSpan.getStyle()
                             .set("font-weight", "500")
@@ -362,6 +369,48 @@ public class DeliveryOrdersView extends VerticalLayout {
 
                     itemLayout.add(nameSpan, qtySpan, priceSpan, subtotalSpan);
                     productsLayout.add(itemLayout);
+
+                    // ============================
+                    // BLOQUE DE MENÚS (productos internos)
+                    // ============================
+                    if (item.isMenu() && item.getMenu() != null) {
+
+                        var m = item.getMenu();
+
+                        VerticalLayout menuDetails = new VerticalLayout();
+                        menuDetails.setPadding(false);
+                        menuDetails.setSpacing(false);
+                        menuDetails.getStyle()
+                                .set("margin-left", "20px")
+                                .set("font-size", "14px");
+
+                        if (!m.getMainProducts().isEmpty()) {
+                            menuDetails.add(new Span("• Main (" + m.getMainQuantity() + "): "
+                                    + String.join(", ", m.getMainProducts())));
+                        }
+
+                        if (!m.getSideProducts().isEmpty()) {
+                            menuDetails.add(new Span("• Side (" + m.getSideQuantity() + "): "
+                                    + String.join(", ", m.getSideProducts())));
+                        }
+
+                        if (!m.getDrinkProducts().isEmpty()) {
+                            menuDetails.add(new Span("• Drink (" + m.getDrinkQuantity() + "): "
+                                    + String.join(", ", m.getDrinkProducts())));
+                        }
+
+                        if (!m.getSecondaryProducts().isEmpty()) {
+                            menuDetails.add(new Span("• Secondary (" + m.getSecondaryQuantity() + "): "
+                                    + String.join(", ", m.getSecondaryProducts())));
+                        }
+
+                        if (!m.getDessertProducts().isEmpty()) {
+                            menuDetails.add(new Span("• Dessert (" + m.getDessertQuantity() + "): "
+                                    + String.join(", ", m.getDessertProducts())));
+                        }
+
+                        productsLayout.add(menuDetails);
+                    }
                 }
 
                 // Total del pedido

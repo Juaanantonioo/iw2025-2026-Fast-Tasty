@@ -277,16 +277,43 @@ public class EmailService {
     }
 
     public void enviarConfirmacionEntrega(Order pedido) {
+        log.info("=== INTENTANDO ENVIAR EMAIL DE ENTREGA/RECOGIDA ===");
+
         try {
+            if (pedido == null) {
+                log.error("❌ Pedido es NULL en enviarConfirmacionEntrega");
+                return;
+            }
+
+            if (pedido.getCustomer() == null) {
+                log.error("❌ Pedido #{} no tiene customer asociado", pedido.getId());
+                return;
+            }
+
             String email = pedido.getCustomer().getEmail();
-            if (email == null || email.isBlank()) return;
+            log.info("Pedido #{}, customer={}, email={}",
+                    pedido.getId(),
+                    pedido.getCustomer().getUsername(),
+                    email);
+
+            if (email == null || email.isBlank()) {
+                log.warn("⚠️ Pedido #{}: email del cliente vacío o null. No se envía confirmación.", pedido.getId());
+                return;
+            }
 
             boolean esDelivery = pedido.getOrderType() == OrderType.DELIVERY;
+            log.info("Tipo de pedido: {}, esDelivery={}", pedido.getOrderType(), esDelivery);
+
+            // Forzar carga de items (por si acaso)
+            if (pedido.getItems() != null) {
+                log.info("Pedido #{} tiene {} items", pedido.getId(), pedido.getItems().size());
+            } else {
+                log.warn("Pedido #{} tiene items = null", pedido.getId());
+            }
 
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(email);
 
-            // 🔥 Asunto dinámico
             message.setSubject(
                     esDelivery
                             ? "Tu pedido #" + pedido.getId() + " ha sido ENTREGADO ✔"
@@ -295,14 +322,17 @@ public class EmailService {
 
             message.setFrom("noreply@fasttasty.com");
 
-            // 🔥 Contenido dinámico
-            message.setText(construirContenidoConfirmacionFinal(pedido, esDelivery));
+            String cuerpo = construirContenidoConfirmacionFinal(pedido, esDelivery);
+            log.debug("Cuerpo de email de entrega/recogida:\n{}", cuerpo);
+            message.setText(cuerpo);
 
+            log.info("Enviando email de confirmación de entrega/recogida para pedido #{}...", pedido.getId());
             mailSender.send(message);
-            log.info("📨 Email de confirmación enviado a {}", email);
+            log.info("✅ Email de confirmación enviado a {}", email);
 
         } catch (Exception e) {
-            log.error("❌ Error enviando email de entrega/recogida: {}", e.getMessage());
+            log.error("❌ Error enviando email de entrega/recogida para pedido #{}",
+                    (pedido != null ? pedido.getId() : null), e);
         }
     }
 
@@ -385,7 +415,11 @@ public class EmailService {
 
             c.append("\n");
 
-            if (item.getProduct().getIngredients() != null) {
+            if (item.isProduct()
+                    && item.getProduct() != null
+                    && item.getProduct().getIngredients() != null
+                    && !item.getProduct().getIngredients().isEmpty()) {
+
                 c.append("   Ingredientes:\n");
                 for (var ing : item.getProduct().getIngredients()) {
                     c.append(String.format(

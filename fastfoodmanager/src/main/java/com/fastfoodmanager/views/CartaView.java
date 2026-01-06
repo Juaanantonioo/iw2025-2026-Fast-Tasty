@@ -863,6 +863,8 @@ public class CartaView extends VerticalLayout {
         dialog.setHeaderTitle("Filtrar productos");
 
         VerticalLayout content = new VerticalLayout();
+        content.setSpacing(true);
+        content.setPadding(true);
 
         Select<FoodType> typeSelect = new Select<>();
         typeSelect.setLabel("Tipo");
@@ -878,6 +880,16 @@ public class CartaView extends VerticalLayout {
             showingFoodTypes = false;
             productGrid.removeAll();
 
+            // ⭐ BOTÓN VOLVER
+            Button back = new Button("← Volver");
+            styleButton(back, 600);
+            back.addClickListener(ev -> showFoodTypes());
+
+            Div backWrapper = new Div(back);
+            backWrapper.getStyle().set("width", "100%");
+            productGrid.add(backWrapper);
+
+            // ⭐ FILTROS
             List<Long> allergenIds =
                     allergenSelect.getValue() != null
                             ? List.of(allergenSelect.getValue().getId())
@@ -894,9 +906,19 @@ public class CartaView extends VerticalLayout {
                         .toList();
             }
 
+            // ⭐ MOSTRAR RESULTADOS
             products.forEach(p -> productGrid.add(createProductCard(p)));
+
             dialog.close();
         });
+
+        // ⭐⭐ ESTA ES LA PARTE QUE FALTABA ⭐⭐
+        content.add(
+                new H3("Filtrar por tipo"),
+                typeSelect,
+                new H3("Filtrar por alérgenos"),
+                allergenSelect
+        );
 
         dialog.add(content);
         dialog.getFooter().add(new Button("Cerrar", e -> dialog.close()), apply);

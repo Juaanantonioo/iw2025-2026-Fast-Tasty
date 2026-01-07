@@ -10,6 +10,7 @@ import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.*;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -77,13 +78,18 @@ public class AdminOffersView extends VerticalLayout {
         configureSelectors();
         configureButtons();
 
+        Component form = createForm(); // ← crear UNA sola vez
+
         HorizontalLayout content = new HorizontalLayout(
                 grid,
-                createForm()
+                form
         );
+        content.setHeight("calc(100vh - 120px)");
+        form.getElement().getStyle().set("height", "100%");
 
         content.setSizeFull();
         content.setFlexGrow(1, grid);
+        content.setFlexGrow(0, form); // ← usar el MISMO form
 
         add(new H2("Gestión de Ofertas"), content);
         editCardboard.addClickListener(e -> openCardboardEditor());
@@ -113,7 +119,7 @@ public class AdminOffersView extends VerticalLayout {
     // FORM
     // ============================================================
 
-    private VerticalLayout createForm() {
+    private Component createForm() {
 
         discountField.setMin(1);
         discountField.setMax(100);
@@ -127,7 +133,6 @@ public class AdminOffersView extends VerticalLayout {
         categorySelector.setItems(foodTypeService.findAll());
         categorySelector.setItemLabelGenerator(FoodType::getName);
 
-        // 🔥 PREVIEW + UPLOAD DE IMAGEN
         offerPreview = new Image();
         offerPreview.setWidth("180px");
         offerPreview.getStyle().set("border-radius", "12px");
@@ -158,17 +163,15 @@ public class AdminOffersView extends VerticalLayout {
                 yField,
                 productSelector,
                 categorySelector,
-
-                // 🔥 NUEVA SECCIÓN DE IMAGEN
                 new H3("Imagen de la oferta"),
                 offerPreview,
                 offerImageUpload,
-
                 saveBtn,
                 deleteBtn
         );
 
-        form.setWidth("360px");
+        // ======== ESTILOS ORIGINALES ========
+        form.setWidth("380px");
         form.setPadding(true);
         form.setSpacing(true);
         form.getStyle()
@@ -176,7 +179,17 @@ public class AdminOffersView extends VerticalLayout {
                 .set("border-radius", "12px")
                 .set("background", "var(--lumo-base-color)");
 
-        return form;
+        // ❌ IMPORTANTE: NO poner overflow en el form
+        // form.getStyle().set("overflow-y", "auto");  ← ELIMINADO
+
+        // ======== CONTENEDOR CON SCROLL (NO PADRE DIRECTO DE COMBOBOX) ========
+        Div scrollContainer = new Div();
+        scrollContainer.setHeight("100%");
+        scrollContainer.getStyle().set("overflow-y", "auto");
+
+        scrollContainer.add(form);
+
+        return scrollContainer;
     }
 
     private void configureSelectors() {

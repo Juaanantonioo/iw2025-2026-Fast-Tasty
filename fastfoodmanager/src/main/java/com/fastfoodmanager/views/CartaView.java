@@ -276,6 +276,9 @@ public class CartaView extends VerticalLayout {
         backWrapper.getStyle().set("width", "100%");
         productGrid.add(backWrapper);
 
+        // 🔍 DEBUG: ver cuántos menús devuelve el servicio
+        System.out.println("MENUS ENCONTRADOS: " + menusService.findActiveMenus().size());
+
         menusService.findActiveMenus().forEach(menu -> productGrid.add(createMenuCard(menu)));
     }
 

@@ -9,6 +9,7 @@ public class ProductSnapshot {
     private String description;
     private double price;
     private byte[] image;
+    private FoodType type;
 
     private List<Product.Ingredient> ingredients = new ArrayList<>();
 
@@ -20,6 +21,7 @@ public class ProductSnapshot {
         this.description = product.getDescription();
         this.price = product.getPrice();
         this.image = product.getImage();
+        this.type = product.getType();
 
         this.ingredients = product.getIngredients() != null
                 ? new ArrayList<>(product.getIngredients())
@@ -48,6 +50,7 @@ public class ProductSnapshot {
     public double getPrice() { return price; }
     public byte[] getImage() { return image; }
     public List<Product.Ingredient> getIngredients() { return ingredients; }
+    public FoodType getType() { return type; }
 
     // SETTERS
     public void setName(String name) { this.name = name; }
@@ -55,6 +58,7 @@ public class ProductSnapshot {
     public void setPrice(double price) { this.price = price; }
     public void setImage(byte[] image) { this.image = image; }
     public void setIngredients(List<Product.Ingredient> ingredients) { this.ingredients = ingredients; }
+    public void setType(FoodType type) { this.type = type; }
 
     // Convertir snapshot → Product editable
     public Product toProduct() {
@@ -63,6 +67,8 @@ public class ProductSnapshot {
         p.setDescription(this.description);
         p.setPrice(this.price);
         p.setImage(this.image);
+        p.setType(this.type);
+
 
         List<Product.Ingredient> rebuilt = new ArrayList<>();
         for (var ing : this.ingredients) {

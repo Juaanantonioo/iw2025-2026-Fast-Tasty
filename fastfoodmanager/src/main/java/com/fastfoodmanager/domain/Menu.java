@@ -13,7 +13,6 @@ public class Menu {
 
     private String name;
 
-    // ⭐ NUEVO CAMPO
     @Column(length = 800)
     private String description;
 
@@ -86,6 +85,30 @@ public class Menu {
     private List<Product> dessertProducts = new ArrayList<>();
 
     // ============================
+    // CONSTRUCTOR VACÍO (JPA)
+    // ============================
+    public Menu() {}
+
+    // ============================================================
+    // 🔥 CONSTRUCTOR DESDE MenuSnapshot (para CartItem y ofertas)
+    // ============================================================
+    public Menu(MenuSnapshot snapshot) {
+        this.name = snapshot.getName();
+        this.description = snapshot.getDescription();
+        this.price = snapshot.getPrice();
+        this.image = snapshot.getImage();
+
+        this.mainQuantity = snapshot.getMainQuantity();
+        this.sideQuantity = snapshot.getSideQuantity();
+        this.drinkQuantity = snapshot.getDrinkQuantity();
+        this.secondaryQuantity = snapshot.getSecondaryQuantity();
+        this.dessertQuantity = snapshot.getDessertQuantity();
+
+        // No reconstruimos listas de productos porque no son necesarias
+        // para aplicar ofertas ni para calcular el precio del menú.
+    }
+
+    // ============================
     // GETTERS Y SETTERS
     // ============================
     public Long getId() { return id; }
@@ -93,7 +116,6 @@ public class Menu {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    // ⭐ NUEVOS GETTER/SETTER
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 

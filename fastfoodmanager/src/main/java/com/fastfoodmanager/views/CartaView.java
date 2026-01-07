@@ -7,11 +7,17 @@ import com.fastfoodmanager.domain.Allergen;
 import com.fastfoodmanager.domain.MenuCardSettings;
 import com.fastfoodmanager.domain.MenuSnapshot;
 import com.fastfoodmanager.domain.ProductSnapshot;
+import com.fastfoodmanager.domain.Offer;
+import com.fastfoodmanager.domain.OfferMode;
+import com.fastfoodmanager.domain.OfferTarget;
+import com.fastfoodmanager.domain.OfferCardSettings;
+import com.fastfoodmanager.service.OfferCardSettingsService;
 import com.fastfoodmanager.service.MenusService;
 import com.fastfoodmanager.service.MenuCardSettingsService;
 import com.fastfoodmanager.service.MenuService;
 import com.fastfoodmanager.service.MenusService;
 import com.fastfoodmanager.service.CartService;
+import com.fastfoodmanager.service.OfferService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dependency.CssImport;
@@ -49,6 +55,8 @@ public class CartaView extends VerticalLayout {
     private final MenusService menusService;
     private final CartService cartService;
     private final MenuCardSettingsService cardSettingsService;
+    private final OfferService offerService;
+    private final OfferCardSettingsService offerCardSettingsService;
     private final NumberFormat currency =
             NumberFormat.getCurrencyInstance(new Locale("es", "ES"));
 
@@ -58,11 +66,15 @@ public class CartaView extends VerticalLayout {
     public CartaView(MenuService menuService,
                      CartService cartService,
                      MenusService menusService,
-                     MenuCardSettingsService cardSettingsService) {
+                     MenuCardSettingsService cardSettingsService,
+                     OfferService offerService,
+                     OfferCardSettingsService offerCardSettingsService) {
         this.menuService = menuService;
         this.cartService = cartService;
         this.menusService = menusService;
         this.cardSettingsService = cardSettingsService;
+        this.offerService = offerService;
+        this.offerCardSettingsService = offerCardSettingsService;
 
         addClassName("carta-view");
         setPadding(false);
@@ -175,6 +187,43 @@ public class CartaView extends VerticalLayout {
         // ⭐ AÑADIRLO AL GRID
         productGrid.add(menuCard);
 
+        // ⭐ CARD OFERTAS
+        OfferCardSettings offerSettings = offerCardSettingsService.get();
+
+        Div offerCard = new Div();
+        offerCard.addClassName("product-card");
+        offerCard.getStyle()
+                .set("cursor", "pointer")
+                .set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)")
+                .set("text-align", "center")
+                .set("max-width", "260px")
+                .set("background-color", "white");
+
+        Image offerImg = new Image();
+        if (offerSettings.getImage() != null) {
+            offerImg.setSrc("data:image/png;base64," +
+                    Base64.getEncoder().encodeToString(offerSettings.getImage()));
+        } else {
+            offerImg.setSrc("path/to/default/offers.png");
+        }
+
+        offerImg.setWidth("180px");
+        offerImg.getStyle().set("border-radius", "12px");
+
+        H1 offerTitle = new H1(offerSettings.getName());
+        offerTitle.getStyle()
+                .set("color", "#ff7b00")
+                .set("font-size", "1.6rem")
+                .set("margin", "12px 0");
+
+        offerCard.add(offerImg, offerTitle);
+        offerCard.addClickListener(e -> showZxYOffers());
+
+
+        productGrid.add(offerCard);
+
         // ⭐ FOOD TYPES
         menuService.findAllFoodTypes().forEach(type -> {
             Div card = new Div();
@@ -230,6 +279,27 @@ public class CartaView extends VerticalLayout {
         menusService.findActiveMenus().forEach(menu -> productGrid.add(createMenuCard(menu)));
     }
 
+    private void showZxYOffers() {
+        showingFoodTypes = false;
+        productGrid.removeAll();
+
+        Button back = new Button("← Volver");
+        styleButton(back, 600);
+        back.addClickListener(e -> showFoodTypes());
+
+        Div backWrapper = new Div(back);
+        backWrapper.getStyle().set("width", "100%");
+        productGrid.add(backWrapper);
+
+        offerService.findZxYOffers().stream()
+                .filter(o -> o.getMode() == OfferMode.ZxY)
+                .forEach(o -> {
+                    Div card = createOfferCard(o);
+                    card.addClickListener(ev -> showOfferProducts(o));
+                    productGrid.add(card);
+                });
+    }
+
     private Div createMenuCard(Menu menu) {
         Div card = new Div();
         card.addClassName("product-card");
@@ -251,8 +321,22 @@ public class CartaView extends VerticalLayout {
         img.setWidth("180px");
         img.getStyle().set("border-radius", "12px");
 
-        Paragraph price = new Paragraph(currency.format(menu.getPrice()));
-        price.getStyle().set("font-weight", "bold");
+        double finalPrice = offerService.getFinalPriceForMenu(menu);
+
+        Paragraph price;
+
+        if (finalPrice < menu.getPrice()) {
+            price = new Paragraph(
+                    currency.format(finalPrice) +
+                            "  (antes " + currency.format(menu.getPrice()) + ")"
+            );
+            price.getStyle()
+                    .set("font-weight", "bold")
+                    .set("color", "red");
+        } else {
+            price = new Paragraph(currency.format(menu.getPrice()));
+            price.getStyle().set("font-weight", "bold");
+        }
 
         Paragraph desc = new Paragraph(menu.getDescription() != null ? menu.getDescription() : "");
         desc.getStyle().set("font-size", "0.9rem").set("min-height", "40px");
@@ -452,7 +536,22 @@ public class CartaView extends VerticalLayout {
         bigImg.setWidth("420px");
 
         Paragraph desc = new Paragraph(menu.getDescription() != null ? menu.getDescription() : "");
-        Paragraph price = new Paragraph("Precio: " + currency.format(menu.getPrice()));
+        double finalPrice = offerService.getFinalPriceForMenu(menu);
+
+        Paragraph price;
+
+        if (finalPrice < menu.getPrice()) {
+            price = new Paragraph(
+                    "Precio: " + currency.format(finalPrice) +
+                            "  (antes " + currency.format(menu.getPrice()) + ")"
+            );
+            price.getStyle()
+                    .set("font-weight", "bold")
+                    .set("color", "red");
+        } else {
+            price = new Paragraph("Precio: " + currency.format(menu.getPrice()));
+            price.getStyle().set("font-weight", "bold");
+        }
 
         content.add(bigImg, desc, price);
 
@@ -649,8 +748,24 @@ public class CartaView extends VerticalLayout {
         img.setWidth("180px");
         img.getStyle().set("border-radius", "12px");
 
-        Paragraph price = new Paragraph(currency.format(product.getPrice()));
-        price.getStyle().set("font-weight", "bold");
+        double finalPrice = offerService.getFinalPriceForProduct(product);
+
+        Paragraph price;
+
+        if (finalPrice < product.getPrice()) {
+            // Precio con oferta
+            price = new Paragraph(
+                    currency.format(finalPrice) +
+                            "  (antes " + currency.format(product.getPrice()) + ")"
+            );
+            price.getStyle()
+                    .set("font-weight", "bold")
+                    .set("color", "red");
+        } else {
+            // Precio normal
+            price = new Paragraph(currency.format(product.getPrice()));
+            price.getStyle().set("font-weight", "bold");
+        }
 
         Button add = new Button("Agregar al Pedido", e -> {
             if (!isAuthenticated()) {
@@ -692,8 +807,22 @@ public class CartaView extends VerticalLayout {
                         ? product.getDescription()
                         : "Sin descripción disponible");
 
-        Paragraph price =
-                new Paragraph("Precio: " + currency.format(product.getPrice()));
+        double finalPrice = offerService.getFinalPriceForProduct(product);
+
+        Paragraph price;
+
+        if (finalPrice < product.getPrice()) {
+            price = new Paragraph(
+                    "Precio: " + currency.format(finalPrice) +
+                            "  (antes " + currency.format(product.getPrice()) + ")"
+            );
+            price.getStyle()
+                    .set("font-weight", "bold")
+                    .set("color", "red");
+        } else {
+            price = new Paragraph("Precio: " + currency.format(product.getPrice()));
+            price.getStyle().set("font-weight", "bold");
+        }
 
         /* =========================
            INGREDIENTES NORMALES
@@ -953,5 +1082,72 @@ public class CartaView extends VerticalLayout {
                 .set("font-weight", String.valueOf(weight))
                 .set("border-radius", "8px")
                 .set("width", "100%");
+    }
+
+    private void showOffers() {
+        showingFoodTypes = false;
+        productGrid.removeAll();
+
+        Button back = new Button("← Volver");
+        styleButton(back, 600);
+        back.addClickListener(e -> showFoodTypes());
+
+        Div backWrapper = new Div(back);
+        backWrapper.getStyle().set("width", "100%");
+        productGrid.add(backWrapper);
+
+        offerService.findZxYOffers()
+                .forEach(offer -> productGrid.add(createOfferCard(offer)));
+    }
+
+    private Div createOfferCard(Offer offer) {
+        Div card = new Div();
+        card.addClassName("product-card");
+        card.getStyle()
+                .set("cursor", "pointer")
+                .set("padding", "14px")
+                .set("border-radius", "12px")
+                .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)")
+                .set("text-align", "center")
+                .set("max-width", "260px")
+                .set("background-color", "white");
+
+        Image img = new Image();
+        if (offer.getImage() != null) {
+            img.setSrc("data:image/png;base64," +
+                    Base64.getEncoder().encodeToString(offer.getImage()));
+        } else {
+            img.setSrc("path/to/default/offers.png");
+        }
+        img.setWidth("180px");
+        img.getStyle().set("border-radius", "12px");
+
+        H1 name = new H1(offer.getName());
+        name.getStyle()
+                .set("color", "#ff7b00")
+                .set("font-size", "1.35rem")
+                .set("margin", "8px 0 0");
+
+        card.add(img, name);
+        return card;
+    }
+
+    private void showOfferProducts(Offer offer) {
+        showingFoodTypes = false;
+        productGrid.removeAll();
+
+        Button back = new Button("← Volver a ofertas");
+        styleButton(back, 600);
+        back.addClickListener(e -> showZxYOffers());
+
+        Div backWrapper = new Div(back);
+        backWrapper.getStyle().set("width", "100%");
+        productGrid.add(backWrapper);
+
+        if (offer.getProducts() != null && !offer.getProducts().isEmpty()) {
+            offer.getProducts().forEach(p -> productGrid.add(createProductCard(p)));
+        } else {
+            productGrid.add(new Paragraph("Esta oferta no tiene productos asociados."));
+        }
     }
 }

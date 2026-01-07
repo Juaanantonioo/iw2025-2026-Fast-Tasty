@@ -150,4 +150,17 @@ public class Product {
 
     public ProductCategory getCategory() { return category; }
     public void setCategory(ProductCategory category) { this.category = category; }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Product)) return false;
+        Product other = (Product) o;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
 }

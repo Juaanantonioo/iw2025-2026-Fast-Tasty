@@ -48,6 +48,8 @@ public class OrderItem {
 
     public OrderItem() {}
 
+    private String offerName;
+
     // ============================
     // PRODUCTO
     // ============================
@@ -79,6 +81,14 @@ public class OrderItem {
         this.quantity = quantity;
         this.unitPrice = menu.getPrice();
         this.productIngredientsJson = null;
+    }
+
+    // ============================
+    // OFERTAS
+    // ============================
+    public OrderItem(String offerName, int quantity) {
+        this.offerName = offerName;
+        this.quantity = quantity;
     }
 
     public OrderItem(MenuSnapshot snapshot, int quantity) {
@@ -152,6 +162,9 @@ public class OrderItem {
 
     public double getUnitPrice() { return unitPrice; }
     public void setUnitPrice(double unitPrice) { this.unitPrice = unitPrice; }
+
+    public String getOfferName() { return offerName; }
+    public void setOfferName(String offerName) { this.offerName = offerName; }
 
     public double getSubtotal() {
         return unitPrice * quantity;

@@ -127,7 +127,7 @@ public class CarritoView extends VerticalLayout {
         if (items.isEmpty()) {
             totalLabel.setText("Tu carrito está vacío");
         } else {
-            totalLabel.setText("Total: " + String.format("€ %.2f", cartService.total()) +
+            totalLabel.setText("Total: " + String.format("€ %.2f", cartService.calculateTotal()) +
                     " | Artículos: " + cartService.countItems());
         }
 

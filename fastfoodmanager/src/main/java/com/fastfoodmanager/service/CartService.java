@@ -12,6 +12,12 @@ import java.util.Objects;
 @SessionScope
 public class CartService {
 
+    private final OfferService offerService;
+
+    public CartService(OfferService offerService) {
+        this.offerService = offerService;
+    }
+
     private List<OrderItem> items = new ArrayList<>();
 
     // ============================
@@ -71,6 +77,7 @@ public class CartService {
 
         ProductSnapshot snapshot = new ProductSnapshot(product);
 
+        // Si ya existe el mismo snapshot → incrementar
         for (OrderItem item : items) {
             if (item.getProduct() != null &&
                     areSnapshotsEqual(item.getProduct(), snapshot)) {
@@ -80,7 +87,14 @@ public class CartService {
             }
         }
 
-        items.add(new OrderItem(product, 1));
+        // Precio final con ofertas
+        double finalPrice = offerService.getFinalPriceForProduct(product);
+
+        OrderItem newItem = new OrderItem(snapshot, 1);
+        newItem.setUnitPrice(finalPrice);
+
+        items.add(newItem);
+        applyZxYUnitPrices();
     }
 
     // ============================
@@ -100,16 +114,25 @@ public class CartService {
             }
         }
 
-        items.add(new OrderItem(menu, 1));
+        double finalPrice = offerService.getFinalPriceForMenu(menu);
+
+        OrderItem newItem = new OrderItem(snapshot, 1);
+        newItem.setUnitPrice(finalPrice);
+
+        items.add(newItem);
+        applyZxYUnitPrices();
     }
 
     // ============================
-    // RESTO IGUAL
+    // GET ITEMS
     // ============================
     public List<OrderItem> getItems() {
         return new ArrayList<>(items);
     }
 
+    // ============================
+    // TOTAL SIN OFERTAS (LEGACY)
+    // ============================
     public double total() {
         return items.stream()
                 .mapToDouble(OrderItem::getSubtotal)
@@ -122,30 +145,37 @@ public class CartService {
                 .sum();
     }
 
+    // ============================
+    // DECREMENTAR
+    // ============================
     public void decrement(OrderItem item) {
         if (item == null) return;
 
         for (OrderItem cartItem : items) {
-            // Producto
+
             if (cartItem.getProduct() != null && item.getProduct() != null &&
                     areSnapshotsEqual(cartItem.getProduct(), item.getProduct())) {
 
                 if (cartItem.getQuantity() > 1) cartItem.setQuantity(cartItem.getQuantity() - 1);
                 else items.remove(cartItem);
+                applyZxYUnitPrices();
                 return;
             }
 
-            // Menú
             if (cartItem.getMenu() != null && item.getMenu() != null &&
                     areMenuSnapshotsEqual(cartItem.getMenu(), item.getMenu())) {
 
                 if (cartItem.getQuantity() > 1) cartItem.setQuantity(cartItem.getQuantity() - 1);
                 else items.remove(cartItem);
+                applyZxYUnitPrices();
                 return;
             }
         }
     }
 
+    // ============================
+    // SNAPSHOTS
+    // ============================
     public void addProductSnapshot(ProductSnapshot snapshot) {
         if (snapshot == null) return;
 
@@ -158,7 +188,24 @@ public class CartService {
             }
         }
 
-        items.add(new OrderItem(snapshot, 1));
+        // Precio final con ofertas
+        double finalPrice = offerService.getFinalPriceForProduct(snapshot.toProduct());
+
+        OrderItem newItem = new OrderItem(snapshot, 1);
+        newItem.setUnitPrice(finalPrice);
+
+        items.add(newItem);
+        applyZxYUnitPrices();
+    }
+
+    public void addMenuSnapshot(MenuSnapshot snapshot) {
+
+        double finalPrice = snapshot.getPrice(); // ya tiene el precio final
+
+        OrderItem newItem = new OrderItem(snapshot, 1);
+        newItem.setUnitPrice(finalPrice);
+
+        items.add(newItem);
     }
 
     public void remove(OrderItem item) {
@@ -173,6 +220,8 @@ public class CartService {
 
             return false;
         });
+
+        applyZxYUnitPrices();
     }
 
     public List<OrderItem> getItemsCopy() {
@@ -202,11 +251,98 @@ public class CartService {
         return copy;
     }
 
-    public void addMenuSnapshot(MenuSnapshot snapshot) {
-        items.add(new OrderItem(snapshot, 1));
-    }
-
     public void clear() {
         items.clear();
+    }
+
+    // ============================================================
+    // OFERTAS: SUBTOTAL, DESCUENTO Y TOTAL FINAL
+    // ============================================================
+
+    public double calculateSubtotal() {
+        return items.stream()
+                .mapToDouble(i -> i.getUnitPrice() * i.getQuantity())
+                .sum();
+    }
+
+    public double calculateDiscount() {
+        List<CartItem> cartItems = items.stream()
+                .map(CartItem::new)
+                .toList();
+
+        return offerService.applyAllOffers(cartItems);
+    }
+
+    public double calculateTotal() {
+        return Math.max(calculateSubtotal() - calculateDiscount(), 0);
+    }
+
+    private void applyZxYUnitPrices() {
+
+        for (Offer offer : offerService.findZxYOffers()) {
+
+            int Z = offer.getZValue();
+            int Y = offer.getYValue();
+
+            // 1. Obtener items afectados según el tipo de oferta
+            List<OrderItem> affected = items.stream()
+                    .filter(i -> i.getProduct() != null)
+                    .filter(i -> {
+
+                        ProductSnapshot snap = i.getProduct();
+
+                        return switch (offer.getTargetType()) {
+
+                            case GLOBAL -> true;
+
+                            case PRODUCT -> offer.getProducts() != null &&
+                                    offer.getProducts().stream()
+                                            .anyMatch(prod ->
+                                                    prod.getName().equalsIgnoreCase(snap.getName())
+                                            );
+
+                            case CATEGORY -> offer.getCategories() != null &&
+                                    snap.getType() != null &&
+                                    offer.getCategories().stream()
+                                            .anyMatch(cat ->
+                                                    cat.getName().equalsIgnoreCase(snap.getType().getName())
+                                            );
+                        };
+                    })
+                    .toList();
+
+            if (affected.size() < Z)
+                continue;
+
+            // 2. Expandir items según cantidad
+            List<OrderItem> expanded = new ArrayList<>();
+            for (OrderItem item : affected) {
+                for (int i = 0; i < item.getQuantity(); i++) {
+                    expanded.add(item);
+                }
+            }
+
+            // 3. Ordenar por precio descendente
+            expanded.sort((a, b) -> Double.compare(b.getUnitPrice(), a.getUnitPrice()));
+
+            // 4. Aplicar regla ZxY
+            for (int i = 0; i + Z <= expanded.size(); i += Z) {
+
+                List<OrderItem> group = expanded.subList(i, i + Z);
+
+                // Los Y más caros se pagan
+                List<OrderItem> pay = group.stream()
+                        .sorted((a, b) -> Double.compare(b.getUnitPrice(), a.getUnitPrice()))
+                        .limit(Y)
+                        .toList();
+
+                // Los demás son gratis
+                List<OrderItem> free = group.stream()
+                        .filter(o -> !pay.contains(o))
+                        .toList();
+
+                free.forEach(o -> o.setUnitPrice(0));
+            }
+        }
     }
 }

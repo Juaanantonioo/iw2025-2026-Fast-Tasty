@@ -23,15 +23,18 @@ public class OrderService {
     private final UserService userService;
     private final EmailService emailService;
     private final ProductRepository productRepo;
+    private final OfferService offerService;
 
     public OrderService(OrderRepository orderRepo,
                         UserService userService,
                         EmailService emailService,
-                        ProductRepository productRepo) {
+                        ProductRepository productRepo,
+                        OfferService offerService) {
         this.orderRepo = orderRepo;
         this.userService = userService;
         this.emailService = emailService;
         this.productRepo = productRepo;
+        this.offerService = offerService;
     }
 
     // =========
@@ -92,7 +95,29 @@ public class OrderService {
         order.setCookedAt(null);
         order.setCookedBy(null);
 
-        order.recalcTotal();
+        // ===============================
+        // CALCULAR TOTAL CON OFERTAS
+        // ===============================
+
+        // 1. Subtotal sin ofertas
+        double subtotal = items.stream()
+                .mapToDouble(i -> i.getUnitPrice() * i.getQuantity())
+                .sum();
+
+        // 2. Convertir OrderItem → CartItem temporal para OfferService
+        List<CartItem> cartItems = items.stream()
+                .map(CartItem::new) // necesitas un constructor CartItem(OrderItem)
+                .toList();
+
+        // 3. Descuento total aplicando ofertas
+        double discount = offerService.applyAllOffers(cartItems);
+
+        // 4. Total final
+        double total = Math.max(subtotal - discount, 0);
+
+        // 5. Guardar total final
+        order.setTotal(total);
+
 
         order = orderRepo.save(order);
         log.info("Pedido #{} creado exitosamente", order.getId());

@@ -1,6 +1,7 @@
 package com.fastfoodmanager.domain;
 
 import jakarta.persistence.*;
+import java.util.*;
 
 @Entity
 public class FoodType {
@@ -40,5 +41,18 @@ public class FoodType {
 
     public void setImage(byte[] image) {
         this.image = image;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FoodType)) return false;
+        FoodType other = (FoodType) o;
+        return id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }

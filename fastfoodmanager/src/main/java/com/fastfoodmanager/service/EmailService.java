@@ -4,7 +4,7 @@ import com.fastfoodmanager.domain.Order;
 import com.fastfoodmanager.domain.OrderItem;
 import com.fastfoodmanager.domain.OrderType;
 import com.fastfoodmanager.domain.MenuSnapshot;
-import com.fastfoodmanager.models.Booking;
+import com.fastfoodmanager.domain.Booking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;

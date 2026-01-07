@@ -1,18 +1,47 @@
-package com.fastfoodmanager.models;
+package com.fastfoodmanager.domain;
 
+import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+@Entity
+@Table(
+        name = "bookings",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_booking_date_time", columnNames = {"fecha", "hora"})
+        }
+)
 public class Booking {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
     private String nombre;
+
+    @Column(nullable = false, length = 9)
     private String telefono;
+
+    @Column(nullable = false)
     private String email;
+
+    @Column(nullable = false)
     private LocalDate fecha;
+
+    @Column(nullable = false)
     private LocalTime hora;
+
+    @Column(nullable = false)
     private Integer personas;
+
+    @Column(length = 300)
     private String comentarios;
 
-    // Constructor
+    public Booking() {
+        // JPA
+    }
+
     public Booking(String nombre, String telefono, String email, LocalDate fecha,
                    LocalTime hora, Integer personas, String comentarios) {
         this.nombre = nombre;
@@ -24,7 +53,8 @@ public class Booking {
         this.comentarios = comentarios;
     }
 
-    // Getters y Setters
+    public Long getId() { return id; }
+
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
 

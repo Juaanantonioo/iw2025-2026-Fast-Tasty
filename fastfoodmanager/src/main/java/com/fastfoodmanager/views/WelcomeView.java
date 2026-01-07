@@ -3,7 +3,7 @@ package com.fastfoodmanager.views;
 import com.fastfoodmanager.service.BookingService;
 import com.fastfoodmanager.service.WelcomeSettingsService;
 import com.fastfoodmanager.domain.WelcomeSettings;
-import com.fastfoodmanager.models.Booking;
+import com.fastfoodmanager.domain.Booking;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -222,7 +222,8 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
                 telefono.setInvalid(false);
 
             } catch (Exception ex) {
-                Notification.show("Error al procesar la reserva. Inténtalo de nuevo.", 3000, Notification.Position.TOP_CENTER);
+                String msg = ex.getMessage() != null ? ex.getMessage() : "Error al procesar la reserva.";
+                Notification.show(msg, 3500, Notification.Position.TOP_CENTER);
             }
         });
         reservar.addClassName("primary-btn");

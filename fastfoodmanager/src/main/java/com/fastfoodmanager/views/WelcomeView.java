@@ -1,6 +1,8 @@
 package com.fastfoodmanager.views;
 
 import com.fastfoodmanager.service.BookingService;
+import com.fastfoodmanager.service.WelcomeSettingsService;
+import com.fastfoodmanager.domain.WelcomeSettings;
 import com.fastfoodmanager.models.Booking;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -28,6 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,9 +42,12 @@ import java.util.Map;
 public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
 
     private final BookingService bookingService;
+    private final WelcomeSettingsService welcomeSettingsService;
 
-    public WelcomeView(BookingService bookingService) {
+    public WelcomeView(BookingService bookingService,
+                       WelcomeSettingsService welcomeSettingsService) {
         this.bookingService = bookingService;
+        this.welcomeSettingsService = welcomeSettingsService;
 
         addClassName("welcome-view");
         setSizeFull();
@@ -50,30 +56,23 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
         setDefaultHorizontalComponentAlignment(Alignment.CENTER);
         setJustifyContentMode(JustifyContentMode.START);
 
+        WelcomeSettings ws = welcomeSettingsService.get();
+        UI.getCurrent().getPage().setTitle(ws.getSiteDomain());
+
         // ===== Fondo carrusel =====
         Div bgCarousel = new Div();
         bgCarousel.addClassName("bg-carousel");
 
-        List<String> images = List.of(
-                "/images/BBQ-BURGER.png",
-                "/images/BOMBA_SEXY.png",
-                "/images/clasica.jpg",
-                "/images/doble_cheese.jpeg",
-                "/images/ensalada_cesar.jpg",
-                "/images/ensalada_mixta.jpeg",
-                "/images/La_iberica.jpg",
-                "/images/La_spanish.avif",
-                "/images/patatas_con_queso_y_bacon.jpg",
-                "/images/trufada_rustica.avif",
-                "https://media.traveler.es/photos/67d05d6cf405fe40a66bfa66/master/w_1600,c_limit/foodberzo.jpg"
-        );
-
-        for (int i = 0; i < images.size(); i++) {
-            Div slide = new Div();
-            slide.addClassName("bg-slide");
-            slide.getStyle().set("background-image", "url('" + images.get(i) + "')");
-            slide.getStyle().set("animation-delay", (i * 7) + "s");
-            bgCarousel.add(slide);
+        List<byte[]> images = ws.getCarouselImages();
+        if (images != null && !images.isEmpty()) {
+            for (int i = 0; i < images.size(); i++) {
+                Div slide = new Div();
+                slide.addClassName("bg-slide");
+                String base64 = Base64.getEncoder().encodeToString(images.get(i));
+                slide.getStyle().set("background-image", "url('data:image/png;base64," + base64 + "')");
+                slide.getStyle().set("animation-delay", (i * 7) + "s");
+                bgCarousel.add(slide);
+            }
         }
         add(bgCarousel);
 
@@ -85,8 +84,9 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
         Div heroHeader = new Div();
         heroHeader.addClassName("hero-header");
 
-        H1 title = new H1("Bienvenido a FastTasty 🍔");
-        Paragraph desc = new Paragraph("Comida deliciosa, rápida y al alcance de un clic.");
+        H1 title = new H1(ws.getSiteTitle() != null ? ws.getSiteTitle() : "Bienvenido a FastTasty 🍔");
+        Paragraph desc = new Paragraph(ws.getSiteSubtitle() != null ? ws.getSiteSubtitle()
+                : "Comida deliciosa, rápida y al alcance de un clic.");
         Button start = new Button("Ver Carta", e -> UI.getCurrent().navigate("carta"));
         start.addClassName("welcome-button");
         heroHeader.add(title, desc, start);
@@ -107,8 +107,11 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
         Div panelUbicacion = new Div();
         panelUbicacion.addClassName("hero-panel");
         H2 locTitle = new H2("📍 Nuestra ubicación");
-        Paragraph address = new Paragraph("Calle Ejemplo 123, Sevilla");
-        IFrame map = new IFrame("https://www.google.com/maps?q=Calle+Ejemplo+123+Sevilla&output=embed");
+        Paragraph address = new Paragraph(ws.getAddress() != null ? ws.getAddress() : "Calle Ejemplo 123, Sevilla");
+        String mapsUrl = ws.getGoogleMapsUrl() != null
+                ? ws.getGoogleMapsUrl()
+                : "https://www.google.com/maps?q=Calle+Ejemplo+123+Sevilla&output=embed";
+        IFrame map = new IFrame(mapsUrl);
         map.addClassName("map-embed");
         map.setTitle("Mapa del restaurante");
         map.getElement().setAttribute("loading", "lazy");
@@ -121,13 +124,21 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
         H2 hoursTitle = new H2("🕒 Horarios");
         UnorderedList hours = new UnorderedList();
         hours.addClassName("horarios");
-        hours.add(new ListItem("Lunes - Jueves: 12:30 – 16:00 / 20:00 – 23:30"));
-        hours.add(new ListItem("Viernes: 12:30 – 16:00 / 20:00 – 00:00"));
-        hours.add(new ListItem("Sábado: 13:00 – 00:00"));
-        hours.add(new ListItem("Domingo: 13:00 – 23:30"));
+
+        String schedule = ws.getScheduleText();
+        if (schedule != null && !schedule.isBlank()) {
+            for (String line : schedule.split("\\r?\\n")) {
+                hours.add(new ListItem(line));
+            }
+        } else {
+            hours.add(new ListItem("Lunes - Jueves: 12:30 – 16:00 / 20:00 – 23:30"));
+            hours.add(new ListItem("Viernes: 12:30 – 16:00 / 20:00 – 00:00"));
+            hours.add(new ListItem("Sábado: 13:00 – 00:00"));
+            hours.add(new ListItem("Domingo: 13:00 – 23:30"));
+        }
         panelHorarios.add(hoursTitle, hours);
 
-        // Reservas
+        // Reservas (igual que tenías)
         Div panelReservas = new Div();
         panelReservas.addClassName("hero-panel");
         H2 resTitle = new H2("Reserva tu mesa");
@@ -243,7 +254,6 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
     public void beforeEnter(BeforeEnterEvent event) {
         if (!isAuthenticated()) return;
 
-        // Redirección por rol (ajusta rutas según tus vistas reales)
         if (hasRole("ADMIN")) {
             event.forwardTo("admin/users");
             return;
@@ -265,7 +275,6 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
             return;
         }
 
-        // USER normal
         event.forwardTo("carta");
     }
 

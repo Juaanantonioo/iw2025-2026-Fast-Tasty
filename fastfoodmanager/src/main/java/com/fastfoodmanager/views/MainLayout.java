@@ -14,19 +14,30 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import com.fastfoodmanager.service.WelcomeSettingsService;
+import com.fastfoodmanager.domain.WelcomeSettings;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @AnonymousAllowed
 @JavaScript("https://cdn.conveythis.com/javascript/conveythis.js?api_key=pub_450bff64f17d3b1a1a1efac21fe1cfa8")
 public class MainLayout extends AppLayout {
 
-    public MainLayout() {
+    private final WelcomeSettingsService welcomeSettingsService;
+
+    @Autowired
+    public MainLayout(WelcomeSettingsService welcomeSettingsService) {
+
+        this.welcomeSettingsService = welcomeSettingsService;
 
         // Inicializa ConveyThis cuando carga la UI (sin romper nada si no existe el init)
         UI.getCurrent().getPage().executeJs(
                 "if (window.ConveyThis_Initialize) { ConveyThis_Initialize({}); }"
         );
 
-        H1 title = new H1("🍔 FastTasty");
+        WelcomeSettings ws = welcomeSettingsService.get();
+        String siteName = ws.getSiteDomain() != null ? ws.getSiteDomain() : ws.getSiteTitle();
+
+        H1 title = new H1(siteName);
         title.getStyle()
                 .set("font-size", "1.4rem")
                 .set("margin", "0")
@@ -83,6 +94,7 @@ public class MainLayout extends AppLayout {
             tabs.add(new RouterLink("Gestionar alérgenos", AdminAllergenView.class));
             tabs.add(new RouterLink("Gestionar menús", MenuView.class));
             tabs.add(new RouterLink("Gestionar ofertas", AdminOffersView.class));
+            tabs.add(new RouterLink("Gestionar página", AdminWelcomeView.class));
         }
 
         HorizontalLayout right = new HorizontalLayout();

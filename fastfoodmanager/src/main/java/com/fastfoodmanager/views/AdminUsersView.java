@@ -9,11 +9,14 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.security.RolesAllowed;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @PageTitle("Usuarios | FastTasty")
 @Route(value = "admin/users", layout = MainLayout.class)
@@ -23,12 +26,11 @@ public class AdminUsersView extends VerticalLayout {
     private final UserService userService;
     private final Grid<User> grid = new Grid<>(User.class, false);
 
-    private final TextField username = new TextField("Nuevo operador - usuario");
-    private final PasswordField password = new PasswordField("Contraseña");
+    // 🔍 Buscador
+    private final TextField searchField = new TextField("Buscar por nombre");
 
-    private final TextField telefono = new TextField("Teléfono");
-    private final TextField email = new TextField("Email");
-    private final TextField direccion = new TextField("Dirección");
+    // 🎚 Filtro por rol
+    private final ComboBox<Role> roleFilter = new ComboBox<>("Filtrar por rol");
 
     public AdminUsersView(UserService userService) {
         this.userService = userService;
@@ -37,42 +39,31 @@ public class AdminUsersView extends VerticalLayout {
         setPadding(true);
         setSpacing(true);
 
-        // Título
         add(new H2("Gestión de usuarios"));
 
-        // ---------- Alta de OPERADORES ----------
-        username.setClearButtonVisible(true);
-        username.setRequired(true);
-        username.setMaxLength(30);
+        // ====== BUSCADOR ======
+        searchField.setPlaceholder("Escribe un nombre...");
+        searchField.setClearButtonVisible(true);
+        searchField.addValueChangeListener(e -> refresh());
 
-        password.setClearButtonVisible(true);
-        password.setRequired(true);
+        // ====== FILTRO POR ROL ======
+        roleFilter.setItems(Role.values());
+        roleFilter.setPlaceholder("Selecciona rol");
+        roleFilter.setClearButtonVisible(true);
+        roleFilter.addValueChangeListener(e -> refresh());
 
-        telefono.setClearButtonVisible(true);
-        telefono.setRequired(true);
-        telefono.setMaxLength(9);
+        HorizontalLayout filters = new HorizontalLayout(searchField, roleFilter);
+        filters.setWidthFull();
+        filters.setAlignItems(Alignment.END);
+        add(filters);
 
-        email.setClearButtonVisible(true);
-        email.setRequired(true);
-
-        direccion.setClearButtonVisible(true);
-        direccion.setRequired(true);
-
-        Button addOperator = new Button("Crear operador", e -> createOperator());
-        addOperator.getStyle().set("background", "#ff7b00").set("color", "white");
-
-        HorizontalLayout form = new HorizontalLayout(username, password, telefono, email, direccion, addOperator);
-        form.setDefaultVerticalComponentAlignment(Alignment.END);
-        add(form);
-
-        // ---------- Grid de usuarios ----------
+        // ===== GRID =====
         grid.addColumn(User::getId).setHeader("ID").setAutoWidth(true);
         grid.addColumn(User::getUsername).setHeader("Usuario").setAutoWidth(true);
         grid.addColumn(u -> u.getRole().name()).setHeader("Rol").setAutoWidth(true);
 
         grid.addComponentColumn(u -> {
             Button delete = new Button("Eliminar", ev -> {
-                // Evitamos borrar al admin principal
                 if ("admin".equalsIgnoreCase(u.getUsername())) {
                     Notification.show("No se puede eliminar el admin principal");
                     return;
@@ -90,34 +81,25 @@ public class AdminUsersView extends VerticalLayout {
         refresh();
     }
 
-    private void createOperator() {
-        String u = username.getValue() == null ? "" : username.getValue().trim();
-        String p = password.getValue() == null ? "" : password.getValue().trim();
-        String t = telefono.getValue() == null ? "" : telefono.getValue().trim();
-        String e = email.getValue() == null ? "" : email.getValue().trim();
-        String d = direccion.getValue() == null ? "" : direccion.getValue().trim();
-
-        if (u.isEmpty() || p.isEmpty() || t.isEmpty() || e.isEmpty() || d.isEmpty()) {
-            Notification.show("Todos los campos son obligatorios obligatorios");
-            return;
-        }
-        try {
-            userService.registerUser(u, p, Role.OPERATOR, t, e, d);
-            username.clear();
-            password.clear();
-            telefono.clear();
-            email.clear();
-            direccion.clear();
-            refresh();
-            Notification.show("Operador creado");
-        } catch (IllegalArgumentException ex) {
-            Notification.show(ex.getMessage());
-        } catch (Exception ex) {
-            Notification.show("Error creando operador");
-        }
-    }
-
     private void refresh() {
-        grid.setItems(userService.findAll());
+        List<User> users = userService.findAll();
+
+        // 🔍 Filtro por nombre
+        String search = searchField.getValue();
+        if (search != null && !search.isBlank()) {
+            users = users.stream()
+                    .filter(u -> u.getUsername().toLowerCase().contains(search.toLowerCase()))
+                    .collect(Collectors.toList());
+        }
+
+        // 🎚 Filtro por rol
+        Role selectedRole = roleFilter.getValue();
+        if (selectedRole != null) {
+            users = users.stream()
+                    .filter(u -> u.getRole() == selectedRole)
+                    .collect(Collectors.toList());
+        }
+
+        grid.setItems(users);
     }
 }

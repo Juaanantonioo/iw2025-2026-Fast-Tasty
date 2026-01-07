@@ -99,8 +99,8 @@ public class ProductView extends VerticalLayout {
         actionsBar.getStyle().set("gap", "10px");
 
         // ===== FORMULARIO =====
-        description.setMaxLength(800);
-        description.setHelperText("Máx. 800 caracteres");
+        description.setMaxLength(1000);
+        description.setHelperText("Máx. 1000 caracteres");
         description.setWidthFull();
 
         price.setStep(0.10);
@@ -155,8 +155,9 @@ public class ProductView extends VerticalLayout {
                 }
                 int width = bufferedImage.getWidth();
                 int height = bufferedImage.getHeight();
-                if (width != 400 || height != 300) {
-                    Notification.show("La imagen debe tener 400x300 px", 3000, Notification.Position.TOP_CENTER);
+
+                if (width != 1000 || height != 1000) {
+                    Notification.show("La imagen debe tener exactamente 1000x1000 px", 3000, Notification.Position.TOP_CENTER);
                     imageUpload.clearFileList();
                     previewImage.setSrc("");
                     return;

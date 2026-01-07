@@ -29,6 +29,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Base64;
 import java.util.HashMap;
@@ -131,14 +132,14 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
                 hours.add(new ListItem(line));
             }
         } else {
-            hours.add(new ListItem("Lunes - Jueves: 12:30 – 16:00 / 20:00 – 23:30"));
-            hours.add(new ListItem("Viernes: 12:30 – 16:00 / 20:00 – 00:00"));
-            hours.add(new ListItem("Sábado: 13:00 – 00:00"));
-            hours.add(new ListItem("Domingo: 13:00 – 23:30"));
+            hours.add(new ListItem("Lunes - Jueves: 12:00 – 00:00"));
+            hours.add(new ListItem("Viernes: 12:00 - 00:30"));
+            hours.add(new ListItem("Sábado: 12:00 – 00:30"));
+            hours.add(new ListItem("Domingo: 12:00 – 00:30"));
         }
         panelHorarios.add(hoursTitle, hours);
 
-        // Reservas (igual que tenías)
+        // Reservas
         Div panelReservas = new Div();
         panelReservas.addClassName("hero-panel");
         H2 resTitle = new H2("Reserva tu mesa");
@@ -148,8 +149,10 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
 
         TextField nombre = new TextField("Nombre");
         nombre.setRequired(true);
+
         TextField telefono = new TextField("Teléfono");
         telefono.setRequired(true);
+
         EmailField email = new EmailField("Email");
         email.setRequiredIndicatorVisible(true);
 
@@ -162,6 +165,10 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
         hora.setMin(LocalTime.of(12, 0));
         hora.setMax(LocalTime.of(23, 30));
         hora.setRequired(true);
+
+        // IMPORTANTÍSIMO: ajustar límites desde el inicio y cuando cambie la fecha
+        updateTimeConstraints(fecha, hora);
+        fecha.addValueChangeListener(e -> updateTimeConstraints(fecha, hora));
 
         IntegerField personas = new IntegerField("Comensales");
         personas.setStepButtonsVisible(true);
@@ -197,6 +204,13 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
                 return;
             }
 
+            // Validación UI adicional: impedir pasado (por si cambió la hora del sistema o el navegador no aplicó bien límites)
+            LocalDateTime requested = LocalDateTime.of(fecha.getValue(), hora.getValue());
+            if (requested.isBefore(LocalDateTime.now())) {
+                Notification.show("No puedes reservar una hora ya pasada.", 3500, Notification.Position.TOP_CENTER);
+                return;
+            }
+
             try {
                 Booking reservaObj = new Booking(
                         nombre.getValue(),
@@ -220,6 +234,9 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
                 personas.setValue(2);
                 comentarios.clear();
                 telefono.setInvalid(false);
+
+                // Reaplica límites tras limpiar
+                updateTimeConstraints(fecha, hora);
 
             } catch (Exception ex) {
                 String msg = ex.getMessage() != null ? ex.getMessage() : "Error al procesar la reserva.";
@@ -282,6 +299,43 @@ public class WelcomeView extends VerticalLayout implements BeforeEnterObserver {
     private boolean isAuthenticated() {
         Authentication a = SecurityContextHolder.getContext().getAuthentication();
         return a != null && a.isAuthenticated() && !"anonymousUser".equals(String.valueOf(a.getPrincipal()));
+    }
+
+    private void updateTimeConstraints(DatePicker fecha, TimePicker hora) {
+        LocalDate selected = fecha.getValue();
+        LocalDate today = LocalDate.now();
+
+        LocalTime opening = LocalTime.of(12, 0);
+        LocalTime closing = LocalTime.of(23, 30);
+
+        if (selected == null) {
+            hora.setMin(opening);
+            hora.setMax(closing);
+            return;
+        }
+
+        if (selected.equals(today)) {
+            LocalTime now = LocalTime.now();
+
+            int stepMinutes = 15;
+            int minute = now.getMinute();
+            int mod = minute % stepMinutes;
+
+            LocalTime roundedUp = (mod == 0) ? now : now.plusMinutes(stepMinutes - mod);
+            roundedUp = roundedUp.withSecond(0).withNano(0);
+
+            LocalTime minAllowed = roundedUp.isAfter(opening) ? roundedUp : opening;
+
+            hora.setMin(minAllowed);
+            hora.setMax(closing);
+
+            if (hora.getValue() != null && hora.getValue().isBefore(minAllowed)) {
+                hora.clear();
+            }
+        } else {
+            hora.setMin(opening);
+            hora.setMax(closing);
+        }
     }
 
     private boolean hasRole(String role) {

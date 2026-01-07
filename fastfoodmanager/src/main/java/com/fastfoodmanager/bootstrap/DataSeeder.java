@@ -85,30 +85,6 @@ public class DataSeeder {
                 }
                 productService.save(p2);
             }
-
-            // Pedidos de ejemplo
-            if (orderService.count() == 0) {
-
-                User cliente = userService.findByUsername("cliente1").orElse(null);
-                List<Product> productos = productService.findAll();
-
-                if (cliente != null && productos.size() >= 2) {
-
-                    // Pedido 1: ENVIADO (recién pagado)
-                    OrderItem i1 = new OrderItem(productos.get(0), 2);
-                    OrderItem i2 = new OrderItem(productos.get(1), 1);
-                    Order o1 = orderService.createOrder(cliente, List.of(i1, i2));
-                    orderService.markAsPaid(o1.getId());
-
-                    // Pedido 2: ya en cocina (simulado: operario lo manda a cocina)
-                    OrderItem i3 = new OrderItem(productos.get(0), 1);
-                    Order o2 = orderService.createOrder(cliente, List.of(i3));
-                    orderService.markAsPaid(o2.getId());
-                    orderService.sendToKitchen(o2.getId(), "operario1");
-
-                    System.out.println("✅ Pedidos de ejemplo creados");
-                }
-            }
         };
     }
 }

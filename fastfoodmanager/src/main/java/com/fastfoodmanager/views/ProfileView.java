@@ -44,8 +44,7 @@ public class ProfileView extends VerticalLayout implements BeforeEnterObserver {
     private Button editButton;
     private Button saveButton;
     private Button cancelButton;
-    private Button btn2FA; // 👈 Nuevo botón para seguridad
-
+    private Button btn2FA; // boton de seguridad 2FA
     // Layouts
     private VerticalLayout mainContentLayout;
     private HorizontalLayout buttonLayout;

@@ -52,15 +52,19 @@ jobs:
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         with:
+          aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_session_token: ${{ secrets.AWS_SESSION_TOKEN }}
           application_name: ${{ secrets.EB_APPLICATION_NAME }}
           environment_name: ${{ secrets.EB_ENVIRONMENT_NAME }}
           version_label: github-${{ github.sha }}
           region: ${{ secrets.AWS_REGION }}
           deployment_package: fastfoodmanager/deploy/app.zip
           use_existing_version_if_available: true
+
+      - name: Check env has AWS creds (masked)
+        run: |
+          test -n "${AWS_ACCESS_KEY_ID:-}" && echo "AWS_ACCESS_KEY_ID present"
+          test -n "${AWS_SECRET_ACCESS_KEY:-}" && echo "AWS_SECRET_ACCESS_KEY present"
+          test -n "${AWS_SESSION_TOKEN:-}" && echo "AWS_SESSION_TOKEN present"
